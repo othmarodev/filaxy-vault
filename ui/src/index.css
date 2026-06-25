@@ -3,23 +3,106 @@
 @tailwind utilities;
 
 :root {
-  --fv-bg: #f8fafc;
+  --fv-bg: #f6f7fb;
   --fv-surface: #ffffff;
-  --fv-text: #0f172a;
-  --fv-muted: #475569;
-  --fv-border: #e2e8f0;
+  --fv-surface-2: #f1f3f9;
+  --fv-hover: #eef1f8;
+  --fv-text: #0b1220;
+  --fv-muted: #5b6478;
+  --fv-faint: #8a93a6;
+  --fv-border: #e6e9f2;
+  --fv-ring: rgba(124, 58, 237, 0.35);
+  --fv-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 8px 24px -12px rgba(16, 24, 40, 0.18);
+  --fv-violet: #7c3aed;
+  --fv-sky: #0ea5e9;
 }
 .dark {
-  --fv-bg: #0b1020;
-  --fv-surface: #131a2e;
-  --fv-text: #f1f5f9;
-  --fv-muted: #94a3b8;
-  --fv-border: #243049;
+  --fv-bg: #080b16;
+  --fv-surface: #0f1525;
+  --fv-surface-2: #131a2e;
+  --fv-hover: #1a2238;
+  --fv-text: #eef2fb;
+  --fv-muted: #9aa6be;
+  --fv-faint: #6b7689;
+  --fv-border: #212c45;
+  --fv-ring: rgba(56, 189, 248, 0.35);
+  --fv-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 30px -12px rgba(0, 0, 0, 0.6);
 }
+
 html, body, #root { height: 100%; }
 body {
   margin: 0;
   background: var(--fv-bg);
   color: var(--fv-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* subtle brand aura behind the whole app */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60rem 40rem at 110% -10%, rgba(14, 165, 233, 0.10), transparent 60%),
+    radial-gradient(50rem 36rem at -10% 110%, rgba(124, 58, 237, 0.10), transparent 60%);
+}
+#root { position: relative; z-index: 1; }
+
+/* subtle vault-dial motif behind app content */
+.fv-vault-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.05;
+  -webkit-mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
+}
+.dark .fv-vault-backdrop { opacity: 0.08; }
+
+/* refined scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--fv-border) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--fv-border); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--fv-faint); background-clip: content-box; }
+
+::selection { background: rgba(124, 58, 237, 0.25); }
+
+input, textarea, select { outline: none; }
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  box-shadow: 0 0 0 3px var(--fv-ring);
+  border-color: transparent;
+}
+
+@keyframes fv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.fv-fade-in { animation: fv-fade-in 0.25s ease-out both; }
+
+/* ── Interactive micro-animations (used across the whole app) ── */
+.fv-ease { transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, background-color .2s ease, color .2s ease, border-color .2s ease; }
+
+/* generic button: lift on hover, press down on click */
+.fv-btn { transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, background-color .2s ease, color .2s ease, border-color .2s ease, background-position .4s ease; }
+.fv-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.fv-btn:active:not(:disabled) { transform: translateY(0) scale(.97); }
+
+/* small icon button: springy scale + slight rotate */
+.fv-icon-btn { transition: transform .2s cubic-bezier(.34,1.56,.64,1), background-color .2s ease, color .2s ease; }
+.fv-icon-btn:hover { transform: scale(1.18); }
+.fv-icon-btn:active { transform: scale(.88); }
+
+/* tag chip: pop up with a brand glow */
+.fv-tag { transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease, background-color .2s ease, color .2s ease; }
+.fv-tag:hover { transform: translateY(-1px) scale(1.06); box-shadow: 0 6px 16px -6px var(--fv-ring); }
+
+/* list row / nav item: glide right on hover */
+.fv-row { transition: transform .18s cubic-bezier(.2,.8,.2,1), background-color .18s ease, color .18s ease; }
+.fv-row:hover { transform: translateX(3px); }
+.fv-row:active { transform: translateX(1px) scale(.995); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fv-ease, .fv-btn, .fv-icon-btn, .fv-tag, .fv-row, .fv-fade-in { transition: none !important; animation: none !important; }
 }

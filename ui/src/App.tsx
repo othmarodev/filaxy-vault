@@ -1,21 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { TopBar } from "./components/TopBar";
+import { VaultBackdrop } from "./components/VaultBackdrop";
 import { Onboarding } from "./screens/Onboarding";
 import { Unlock } from "./screens/Unlock";
-import { VaultList } from "./screens/VaultList";
-import { EntryEditor } from "./screens/EntryEditor";
-import { ImportWizard } from "./screens/ImportWizard";
-import { SettingsScreen } from "./screens/SettingsScreen";
+import { VaultWorkspace } from "./screens/VaultWorkspace";
 import * as api from "./api";
 
-type View = "loading" | "onboarding" | "unlock" | "list" | "editor" | "import" | "settings";
+type View = "loading" | "onboarding" | "unlock" | "vault";
 
 export default function App() {
   const [view, setView] = useState<View>("loading");
   const [path, setPath] = useState("");
-  const [editId, setEditId] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
   const lastTouch = useRef(0);
 
   useEffect(() => {
@@ -26,12 +22,12 @@ export default function App() {
       const exists = await api.vaultExists(p);
       if (!exists) { setView("onboarding"); return; }
       const locked = await api.isLocked();
-      setView(locked ? "unlock" : "list");
+      setView(locked ? "unlock" : "vault");
     })();
   }, []);
 
   // activity + auto-lock loop (only while unlocked)
-  const unlocked = view === "list" || view === "editor" || view === "import" || view === "settings";
+  const unlocked = view === "vault";
   useEffect(() => {
     if (!unlocked) return;
     const onActivity = () => {
@@ -52,25 +48,16 @@ export default function App() {
   }, [unlocked]);
 
   const lock = useCallback(async () => { await api.lockVault(); setView("unlock"); }, []);
-  const reload = () => setReloadKey((k) => k + 1);
 
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="h-full flex flex-col relative z-10">
+      <VaultBackdrop />
       <TopBar onLock={unlocked ? lock : undefined} />
-      <main className="flex-1">
+      <main className="flex-1 min-h-0">
         {view === "loading" && <div className="p-8 text-center" style={{ color: "var(--fv-muted)" }}>…</div>}
-        {view === "onboarding" && <Onboarding path={path} onCreated={() => setView("list")} />}
-        {view === "unlock" && <Unlock path={path} onUnlocked={() => setView("list")} />}
-        {view === "list" && (
-          <VaultList reloadKey={reloadKey}
-            onOpenEntry={(id) => { setEditId(id); setView("editor"); }}
-            onAdd={() => { setEditId(null); setView("editor"); }}
-            onImport={() => setView("import")}
-            onSettings={() => setView("settings")} />
-        )}
-        {view === "editor" && <EntryEditor id={editId} onClose={() => { reload(); setView("list"); }} />}
-        {view === "import" && <ImportWizard onDone={() => { reload(); setView("list"); }} />}
-        {view === "settings" && <SettingsScreen onDone={() => setView("list")} />}
+        {view === "onboarding" && <Onboarding path={path} onCreated={() => setView("vault")} />}
+        {view === "unlock" && <Unlock path={path} onUnlocked={() => setView("vault")} />}
+        {view === "vault" && <VaultWorkspace onLock={lock} />}
       </main>
     </div>
   );
