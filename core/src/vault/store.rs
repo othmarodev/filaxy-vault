@@ -11,6 +11,12 @@ pub fn save(
     params: KdfParams,
 ) -> Result<()> {
     let blob = format::seal(vault, password, keyfile, params)?;
+    // ensure the parent directory exists (e.g. the OS app-data dir on first run)
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
     // write to a temp file then rename for atomicity
     let tmp = path.with_extension("fvault.tmp");
     std::fs::write(&tmp, &blob)?;
