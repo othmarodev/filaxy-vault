@@ -217,3 +217,76 @@ pub fn password_entropy(
 pub fn totp_now(secret: String) -> Result<String, String> {
     totp::current_code(&secret)
 }
+
+// ---------------------------------------------------------------------------
+// Task 8: clipboard auto-clear + auto-lock + settings + activity
+// ---------------------------------------------------------------------------
+
+use tauri::AppHandle;
+use tauri_plugin_clipboard_manager::ClipboardExt;
+// `Settings` is already imported at the top of this module (Task 6).
+
+#[tauri::command]
+pub fn copy_secret_to_clipboard(
+    app_handle: AppHandle,
+    state: State<'_, Mutex<AppState>>,
+    id: String,
+) -> Result<(), String> {
+    let (secret, clear_after) = {
+        let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+        let u = app.session.unlocked.as_ref().ok_or("locked")?;
+        let uuid = parse_id(&id)?;
+        let e = u.vault.get(uuid).ok_or("not found")?;
+        (e.password.clone(), u.settings.clipboard_clear_secs)
+    };
+
+    app_handle.clipboard().write_text(secret.clone()).map_err(|e| e.to_string())?;
+
+    let handle = app_handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(clear_after));
+        // only clear if the clipboard still holds OUR secret (don't stomp later copies)
+        if let Ok(current) = handle.clipboard().read_text() {
+            if current == secret {
+                let _ = handle.clipboard().write_text(String::new());
+            }
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn touch_activity(state: State<'_, Mutex<AppState>>) {
+    if let Ok(mut app) = state.lock() {
+        let now = now_secs();
+        app.session.touch(now);
+    }
+}
+
+#[tauri::command]
+pub fn check_autolock(state: State<'_, Mutex<AppState>>) -> bool {
+    let mut app = match state.lock() { Ok(a) => a, Err(_) => return true };
+    if app.session.is_expired(now_secs()) {
+        app.session.lock();
+    }
+    app.session.is_locked()
+}
+
+#[tauri::command]
+pub fn get_settings(state: State<'_, Mutex<AppState>>) -> Result<Settings, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    Ok(u.settings.clone())
+}
+
+#[tauri::command]
+pub fn set_settings(
+    state: State<'_, Mutex<AppState>>,
+    autolock_secs: u64,
+    clipboard_clear_secs: u64,
+) -> Result<(), String> {
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_mut().ok_or("locked")?;
+    u.settings = Settings { autolock_secs, clipboard_clear_secs };
+    Ok(())
+}
