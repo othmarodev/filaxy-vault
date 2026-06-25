@@ -140,7 +140,7 @@ Entrada (entry):
 - `tags` (lista)
 - `totp_secret` (opcional, secreto — para generar códigos TOTP de los sitios del usuario)
 - `created_at`, `updated_at`
-- `history` (versiones anteriores de la entrada, para no perder cambios) — opcional Fase 1
+- `history` (versiones anteriores de la entrada, para no perder cambios) — **incluido en Fase 1**
 
 Metadata de bóveda: nombre, parámetros KDF, configuración (timeout de auto-lock, segundos de
 clipboard auto-clear, etc.).
@@ -266,11 +266,15 @@ Gracias a **Tauri 2**, el mismo núcleo compila a Win/Mac/Linux + iOS/Android.
 
 ## 15. Decisiones bloqueadas
 
+- **Nombre:** Filaxy Vault.
 - Local-first, **sin nube**, sin backend.
 - **Sin hardware** (cero gasto para el usuario); sin SMS.
-- Stack: **Tauri 2** (core Rust + UI React/TS).
-- Cripto: **Argon2id + XChaCha20-Poly1305**; formato propio `.fvault` (no KDBX).
+- Stack: **Tauri 2** (core Rust + **UI React + TypeScript + Vite + Tailwind**).
+- Cripto: **Argon2id (64 MiB, ~0.5–1 s) + XChaCha20-Poly1305**; formato propio `.fvault` (no KDBX).
 - Multi-factor: **biometría OS + TOTP opcional + key file opcional**.
+- **Historial de versiones de entrada: incluido en Fase 1.**
+- **Import Fase 1:** CSV/XLSX genérico + presets Chrome, LastPass, Bitwarden, 1Password, KeePass.
+- **Defaults de seguridad:** auto-lock 5 min · clipboard auto-clear 20 s (ambos configurables).
 - Código **clean-room** (sin código GPL de KeePassXC).
 - Orden de construcción: **desktop primero**, luego recompilar a móvil para las stores.
 
