@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --fv-bg: #f8fafc;
+  --fv-surface: #ffffff;
+  --fv-text: #0f172a;
+  --fv-muted: #475569;
+  --fv-border: #e2e8f0;
+}
+.dark {
+  --fv-bg: #0b1020;
+  --fv-surface: #131a2e;
+  --fv-text: #f1f5f9;
+  --fv-muted: #94a3b8;
+  --fv-border: #243049;
+}
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--fv-bg);
+  color: var(--fv-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
