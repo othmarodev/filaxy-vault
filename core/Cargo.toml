@@ -1,0 +1,25 @@
+[package]
+name = "filaxy-vault-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+argon2 = "0.5"
+chacha20poly1305 = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
+getrandom = "0.2"
+zeroize = { version = "1.8", features = ["derive"] }
+subtle = "2.6"
+uuid = { version = "1", features = ["v4", "serde"] }
+serde = { version = "1", features = ["derive"] }
+ciborium = "0.2"
+csv = "1.3"
+calamine = "0.26"
+thiserror = "2"
+time = { version = "0.3", features = ["serde"] }
+
+[dev-dependencies]
+proptest = "1"
+hex = "0.4"
