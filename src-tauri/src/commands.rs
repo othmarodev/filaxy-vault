@@ -290,3 +290,110 @@ pub fn set_settings(
     u.settings = Settings { autolock_secs, clipboard_clear_secs };
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Task 9: import/export + remember-device
+// ---------------------------------------------------------------------------
+
+use serde::{Deserialize, Serialize};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use filaxy_vault_core::import::{self, csv as csv_in, xlsx as xlsx_in, presets, ColumnMapping};
+use crate::keychain;
+
+#[derive(Serialize)]
+pub struct ImportPreview {
+    pub headers: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub detected_preset: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct MappingArg {
+    pub title: Option<String>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub url: Option<String>,
+    pub notes: Option<String>,
+}
+
+fn read_table(file_path: &str) -> Result<(Vec<String>, Vec<Vec<String>>), String> {
+    let bytes = std::fs::read(file_path).map_err(|e| e.to_string())?;
+    if file_path.to_lowercase().ends_with(".xlsx") {
+        xlsx_in::read(&bytes).map_err(|e| format!("{e:?}"))
+    } else {
+        csv_in::read(&bytes).map_err(|e| format!("{e:?}"))
+    }
+}
+
+#[tauri::command]
+pub fn import_preview(file_path: String) -> Result<ImportPreview, String> {
+    let (headers, rows) = read_table(&file_path)?;
+    let detected_preset = presets::detect(&headers).map(|p| format!("{p:?}"));
+    Ok(ImportPreview { headers, rows, detected_preset })
+}
+
+#[tauri::command]
+pub fn import_commit(
+    state: State<'_, Mutex<AppState>>,
+    file_path: String,
+    map: MappingArg,
+) -> Result<usize, String> {
+    let (headers, rows) = read_table(&file_path)?;
+    let mapping = ColumnMapping {
+        title: map.title, username: map.username, password: map.password, url: map.url, notes: map.notes,
+    };
+    let now = now_secs() as i64;
+    let entries = import::rows_to_entries(&headers, &rows, &mapping, now);
+    let count = entries.len();
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        for e in entries { u.vault.add(e); }
+    }
+    persist(&app)?;
+    Ok(count)
+}
+
+#[tauri::command]
+pub fn export_backup(state: State<'_, Mutex<AppState>>, dest_path: String) -> Result<(), String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let kf: Option<&[u8]> = u.keyfile.as_ref().map(|z| z.as_slice());
+    store::save(&PathBuf::from(dest_path), &u.vault, &u.password, kf, u.params)
+        .map_err(|_| "cannot export".to_string())
+}
+
+#[tauri::command]
+pub fn remember_on_device(state: State<'_, Mutex<AppState>>) -> Result<(), String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let path = app.vault_path.as_ref().ok_or("no vault path")?.to_string_lossy().to_string();
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let key_b64 = STANDARD.encode(u.password.as_slice());
+    keychain::remember(&path, &key_b64)
+}
+
+#[tauri::command]
+pub fn forget_device(state: State<'_, Mutex<AppState>>) -> Result<(), String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let path = app.vault_path.as_ref().ok_or("no vault path")?.to_string_lossy().to_string();
+    keychain::forget(&path)
+}
+
+#[tauri::command]
+pub fn unlock_with_device(state: State<'_, Mutex<AppState>>, path: String) -> Result<(), String> {
+    let recalled = keychain::recall(&path)?.ok_or("no device key")?;
+    let pw_bytes = STANDARD.decode(recalled).map_err(|_| "bad device key".to_string())?;
+    let p = PathBuf::from(&path);
+    let vault = store::load(&p, &pw_bytes, None).map_err(|_| "cannot open vault".to_string())?;
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let unlocked = Unlocked {
+        vault,
+        password: Zeroizing::new(pw_bytes),
+        keyfile: None,
+        params: KdfParams::default(),
+        settings: Settings::default(),
+    };
+    app.session.set_unlocked(unlocked, now_secs());
+    app.vault_path = Some(p);
+    Ok(())
+}
