@@ -29,4 +29,6 @@ export const en = {
   language: "Language",
   theme: "Theme",
 } as const;
-export type Dict = typeof en;
+// Keys come from `en`; values widened to `string` so locale dicts (es.ts) can
+// hold translated strings without each one being typed as the English literal.
+export type Dict = Record<keyof typeof en, string>;
