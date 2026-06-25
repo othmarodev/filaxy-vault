@@ -93,3 +93,127 @@ pub fn lock_vault(state: State<'_, Mutex<AppState>>) {
 pub fn is_locked(state: State<'_, Mutex<AppState>>) -> bool {
     state.lock().map(|app| app.session.is_locked()).unwrap_or(true)
 }
+
+// ---------------------------------------------------------------------------
+// Task 7: entry CRUD + search + generator + TOTP
+// ---------------------------------------------------------------------------
+
+use filaxy_vault_core::generator::{self, GenOptions};
+use filaxy_vault_core::vault::model::Entry;
+use uuid::Uuid;
+use crate::dto;
+use crate::totp;
+
+fn persist(app: &AppState) -> Result<(), String> {
+    let path = app.vault_path.as_ref().ok_or("no vault path")?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let kf: Option<&[u8]> = u.keyfile.as_ref().map(|z| z.as_slice());
+    store::save(path, &u.vault, &u.password, kf, u.params).map_err(|_| "cannot save vault".to_string())
+}
+
+fn parse_id(id: &str) -> Result<Uuid, String> {
+    Uuid::parse_str(id).map_err(|_| "bad id".to_string())
+}
+
+#[tauri::command]
+pub fn list_entries(state: State<'_, Mutex<AppState>>) -> Result<Vec<dto::EntrySummary>, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    Ok(u.vault.entries.iter().map(dto::from_entry).collect())
+}
+
+#[tauri::command]
+pub fn search_entries(state: State<'_, Mutex<AppState>>, query: String) -> Result<Vec<dto::EntrySummary>, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    Ok(u.vault.search(&query).into_iter().map(dto::from_entry).collect())
+}
+
+#[tauri::command]
+pub fn get_entry_secret(state: State<'_, Mutex<AppState>>, id: String) -> Result<dto::EntrySecret, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let uuid = parse_id(&id)?;
+    let e = u.vault.get(uuid).ok_or("not found")?;
+    let totp_code = e.totp_secret.as_ref().and_then(|s| totp::current_code(s).ok());
+    Ok(dto::EntrySecret { password: e.password.clone(), notes: e.notes.clone(), totp_code })
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn add_entry(
+    state: State<'_, Mutex<AppState>>,
+    title: String, username: String, password: String, url: String, notes: String,
+    tags: Vec<String>, totp_secret: Option<String>,
+) -> Result<String, String> {
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let now = now_secs() as i64;
+    let id = {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        let mut e = Entry::new(title);
+        e.username = username; e.url = url; e.notes = notes; e.tags = tags;
+        e.totp_secret = totp_secret; e.created_at = now;
+        e.set_password(password, now);
+        let id = e.id.to_string();
+        u.vault.add(e);
+        id
+    };
+    persist(&app)?;
+    Ok(id)
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn update_entry(
+    state: State<'_, Mutex<AppState>>,
+    id: String, title: String, username: String, password: String, url: String, notes: String,
+    tags: Vec<String>, totp_secret: Option<String>,
+) -> Result<(), String> {
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let now = now_secs() as i64;
+    let uuid = parse_id(&id)?;
+    {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        let e = u.vault.get_mut(uuid).ok_or("not found")?;
+        e.title = title; e.username = username; e.url = url; e.notes = notes;
+        e.tags = tags; e.totp_secret = totp_secret;
+        if e.password != password {
+            e.set_password(password, now);
+        }
+    }
+    persist(&app)
+}
+
+#[tauri::command]
+pub fn delete_entry(state: State<'_, Mutex<AppState>>, id: String) -> Result<(), String> {
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let uuid = parse_id(&id)?;
+    {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        if !u.vault.remove(uuid) {
+            return Err("not found".to_string());
+        }
+    }
+    persist(&app)
+}
+
+#[tauri::command]
+pub fn generate_password(
+    length: usize, lower: bool, upper: bool, digits: bool, symbols: bool, exclude_ambiguous: bool,
+) -> Result<String, String> {
+    let opts = GenOptions { length, lower, upper, digits, symbols, exclude_ambiguous };
+    generator::generate(&opts).map_err(|_| "invalid options".to_string())
+}
+
+#[tauri::command]
+pub fn password_entropy(
+    length: usize, lower: bool, upper: bool, digits: bool, symbols: bool, exclude_ambiguous: bool,
+) -> f64 {
+    let opts = GenOptions { length, lower, upper, digits, symbols, exclude_ambiguous };
+    generator::entropy_bits(&opts)
+}
+
+#[tauri::command]
+pub fn totp_now(secret: String) -> Result<String, String> {
+    totp::current_code(&secret)
+}
