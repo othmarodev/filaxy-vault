@@ -44,6 +44,7 @@ export const en = {
   folder: "Folder",
   folders: "Folders",
   iconField: "Icon",
+  helpMenu: "Help",
   health: "Health",
   healthSubtitle: "Your vault's password health, checked locally — no data leaves your device.",
   healthScore: "Health score",

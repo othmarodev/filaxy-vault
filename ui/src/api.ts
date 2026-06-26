@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { EntrySummary, EntrySecret, SeedSecret, Settings, ImportPreview, Mapping, GenOpts, CustomField, AttachmentInfo, HealthReport } from "./types";
 
 export const vaultExists = (path: string) => invoke<boolean>("vault_exists", { path });
@@ -94,3 +95,7 @@ export const getAttachment = (id: string, index: number) => invoke<string>("get_
 
 // ── Offline health report ──
 export const healthReport = () => invoke<HealthReport>("health_report");
+
+// ── Native menu ──
+export const setMenuLanguage = (lang: string) => invoke<void>("set_menu_language", { lang });
+export const onMenu = (cb: (id: string) => void) => listen<string>("fv-menu", (e) => cb(e.payload));

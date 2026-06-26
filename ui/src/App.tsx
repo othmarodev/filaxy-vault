@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { TopBar } from "./components/TopBar";
 import { VaultBackdrop } from "./components/VaultBackdrop";
+import { HelpModal, type HelpSection } from "./components/HelpModal";
 import { Onboarding } from "./screens/Onboarding";
 import { Unlock } from "./screens/Unlock";
 import { VaultWorkspace } from "./screens/VaultWorkspace";
+import { useLang } from "./i18n/I18nContext";
 import * as api from "./api";
 
 type View = "loading" | "onboarding" | "unlock" | "vault";
@@ -12,7 +14,11 @@ type View = "loading" | "onboarding" | "unlock" | "vault";
 export default function App() {
   const [view, setView] = useState<View>("loading");
   const [path, setPath] = useState("");
+  const [help, setHelp] = useState<{ open: boolean; section: HelpSection }>({ open: false, section: "manual" });
   const lastTouch = useRef(0);
+  const { lang } = useLang();
+
+  const openHelp = useCallback((section: HelpSection) => setHelp({ open: true, section }), []);
 
   useEffect(() => {
     (async () => {
@@ -25,6 +31,22 @@ export default function App() {
       setView(locked ? "unlock" : "vault");
     })();
   }, []);
+
+  // keep the native menu bar in the current language
+  useEffect(() => { api.setMenuLanguage(lang).catch(() => {}); }, [lang]);
+
+  const lock = useCallback(async () => { await api.lockVault(); setView("unlock"); }, []);
+
+  // native-menu events that are global (help/about/lock)
+  useEffect(() => {
+    const un = api.onMenu((id) => {
+      if (id === "menu_manual") openHelp("manual");
+      else if (id === "menu_shortcuts") openHelp("shortcuts");
+      else if (id === "menu_about") openHelp("about");
+      else if (id === "menu_lock") void lock();
+    });
+    return () => { un.then((f) => f()); };
+  }, [openHelp, lock]);
 
   // activity + auto-lock loop (only while unlocked)
   const unlocked = view === "vault";
@@ -47,8 +69,6 @@ export default function App() {
     };
   }, [unlocked]);
 
-  const lock = useCallback(async () => { await api.lockVault(); setView("unlock"); }, []);
-
   return (
     <div className="h-full flex flex-col relative z-10">
       <VaultBackdrop />
@@ -57,8 +77,9 @@ export default function App() {
         {view === "loading" && <div className="p-8 text-center" style={{ color: "var(--fv-muted)" }}>…</div>}
         {view === "onboarding" && <Onboarding path={path} onCreated={() => setView("vault")} />}
         {view === "unlock" && <Unlock path={path} onUnlocked={() => setView("vault")} />}
-        {view === "vault" && <VaultWorkspace onLock={lock} />}
+        {view === "vault" && <VaultWorkspace onLock={lock} onOpenHelp={openHelp} />}
       </main>
+      <HelpModal open={help.open} section={help.section} onClose={() => setHelp((h) => ({ ...h, open: false }))} onSection={(s) => setHelp({ open: true, section: s })} />
     </div>
   );
 }

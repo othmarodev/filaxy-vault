@@ -45,7 +45,7 @@ function NavItem({
   );
 }
 
-export function VaultWorkspace({ onLock }: { onLock: () => void }) {
+export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onOpenHelp: (s: "manual" | "shortcuts" | "about") => void }) {
   const t = useT();
   const [entries, setEntries] = useState<EntrySummary[]>([]);
   const [query, setQuery] = useState("");
@@ -67,6 +67,16 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
   }, [query, reloadKey]);
 
   const reload = () => setReloadKey((k) => k + 1);
+
+  // native-menu events for vault actions
+  useEffect(() => {
+    const un = api.onMenu((id) => {
+      if (id === "menu_settings") setShowSettings(true);
+      else if (id === "menu_import") setShowImport(true);
+      else if (id === "menu_new") setEditing({ id: null, kind: "login" });
+    });
+    return () => { un.then((f) => f()); };
+  }, []);
 
   const tags = useMemo(() => {
     const set = new Set<string>();
@@ -222,6 +232,7 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
         <div className="mt-auto p-2 border-t space-y-0.5" style={{ borderColor: "var(--fv-border)" }}>
           <NavItem label={t("importTitle")} icon="📥" onClick={() => setShowImport(true)} />
           <NavItem label={t("settings")} icon="⚙" onClick={() => setShowSettings(true)} />
+          <NavItem label={t("helpMenu")} icon="?" onClick={() => onOpenHelp("manual")} />
           <NavItem label={t("lock")} icon="🔒" onClick={onLock} />
         </div>
       </aside>

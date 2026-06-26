@@ -45,6 +45,7 @@ export const es: Dict = {
   folder: "Carpeta",
   folders: "Carpetas",
   iconField: "Ícono",
+  helpMenu: "Ayuda",
   health: "Salud",
   healthSubtitle: "La salud de las contraseñas de tu bóveda, analizada localmente — nada sale de tu dispositivo.",
   healthScore: "Puntaje de salud",

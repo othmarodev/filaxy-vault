@@ -5,8 +5,10 @@ pub mod totp;
 pub mod keychain;
 pub mod dto;
 pub mod commands;
+pub mod menu;
 
 use std::sync::Mutex;
+use tauri::Emitter;
 use state::AppState;
 
 pub fn run() {
@@ -14,6 +16,10 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .menu(|app| menu::build_menu(app, "en"))
+        .on_menu_event(|app, event| {
+            let _ = app.emit("fv-menu", event.id().0.clone());
+        })
         .manage(Mutex::new(AppState::default()))
         .invoke_handler(tauri::generate_handler![
             commands::vault_exists,
@@ -57,7 +63,8 @@ pub fn run() {
             commands::update_totp_entry,
             commands::get_totp_secret,
             commands::totp_code_for,
-            commands::import_google_authenticator
+            commands::import_google_authenticator,
+            menu::set_menu_language
         ])
         .run(tauri::generate_context!())
         .expect("error while running Filaxy Vault");
