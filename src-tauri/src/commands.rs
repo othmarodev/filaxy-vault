@@ -273,6 +273,54 @@ pub fn toggle_favorite(state: State<'_, Mutex<AppState>>, id: String) -> Result<
     Ok(fav)
 }
 
+// ── Attachments (files stored encrypted inside the vault) ─────────────────────
+
+#[tauri::command]
+pub fn list_attachments(state: State<'_, Mutex<AppState>>, id: String) -> Result<Vec<dto::AttachmentInfo>, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let uuid = parse_id(&id)?;
+    let e = u.vault.get(uuid).ok_or("not found")?;
+    Ok(e.attachments.iter().map(|a| dto::AttachmentInfo { name: a.name.clone(), size: a.data.len() }).collect())
+}
+
+#[tauri::command]
+pub fn add_attachment(state: State<'_, Mutex<AppState>>, id: String, name: String, data_b64: String) -> Result<(), String> {
+    let bytes = base64::engine::general_purpose::STANDARD.decode(data_b64.as_bytes()).map_err(|_| "bad attachment data".to_string())?;
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let uuid = parse_id(&id)?;
+    {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        let e = u.vault.get_mut(uuid).ok_or("not found")?;
+        e.attachments.push(filaxy_vault_core::vault::model::Attachment { name, data: bytes });
+    }
+    persist(&app)
+}
+
+#[tauri::command]
+pub fn remove_attachment(state: State<'_, Mutex<AppState>>, id: String, index: usize) -> Result<(), String> {
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let uuid = parse_id(&id)?;
+    {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        let e = u.vault.get_mut(uuid).ok_or("not found")?;
+        if index >= e.attachments.len() { return Err("not found".to_string()); }
+        e.attachments.remove(index);
+    }
+    persist(&app)
+}
+
+/// Returns one attachment's bytes as base64 (for download/save).
+#[tauri::command]
+pub fn get_attachment(state: State<'_, Mutex<AppState>>, id: String, index: usize) -> Result<String, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let uuid = parse_id(&id)?;
+    let e = u.vault.get(uuid).ok_or("not found")?;
+    let a = e.attachments.get(index).ok_or("not found")?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&a.data))
+}
+
 #[tauri::command]
 pub fn generate_password(
     length: usize, lower: bool, upper: bool, digits: bool, symbols: bool, exclude_ambiguous: bool,

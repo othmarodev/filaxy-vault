@@ -3,6 +3,7 @@ import type { EntrySummary, EntrySecret } from "../types";
 import { useT } from "../i18n/I18nContext";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
+import { Attachments } from "./Attachments";
 import * as api from "../api";
 
 function Field({
@@ -138,6 +139,7 @@ export function EntryDetail({
             </div>
           </div>
         )}
+        <Attachments entryId={entry.id} />
       </div>
 
       {/* footer */}

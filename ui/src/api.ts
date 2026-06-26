@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { EntrySummary, EntrySecret, SeedSecret, Settings, ImportPreview, Mapping, GenOpts, CustomField } from "./types";
+import type { EntrySummary, EntrySecret, SeedSecret, Settings, ImportPreview, Mapping, GenOpts, CustomField, AttachmentInfo } from "./types";
 
 export const vaultExists = (path: string) => invoke<boolean>("vault_exists", { path });
 
@@ -85,3 +85,9 @@ export const updateTotpEntry = (id: string, issuer: string, account: string, sec
 export const getTotpSecret = (id: string) => invoke<string>("get_totp_secret", { id });
 export const totpCodeFor = (id: string) => invoke<string>("totp_code_for", { id });
 export const importGoogleAuthenticator = (uri: string) => invoke<number>("import_google_authenticator", { uri });
+
+// ── Attachments (files stored encrypted in the vault) ──
+export const listAttachments = (id: string) => invoke<AttachmentInfo[]>("list_attachments", { id });
+export const addAttachment = (id: string, name: string, dataB64: string) => invoke<void>("add_attachment", { id, name, dataB64 });
+export const removeAttachment = (id: string, index: number) => invoke<void>("remove_attachment", { id, index });
+export const getAttachment = (id: string, index: number) => invoke<string>("get_attachment", { id, index });

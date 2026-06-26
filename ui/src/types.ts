@@ -14,6 +14,11 @@ export interface EntrySummary {
   group: string;
   icon: string;
   expires_at: number | null;
+  attachment_count: number;
+}
+export interface AttachmentInfo {
+  name: string;
+  size: number;
 }
 export interface CustomField {
   label: string;

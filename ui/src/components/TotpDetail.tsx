@@ -3,6 +3,7 @@ import type { EntrySummary } from "../types";
 import { useT } from "../i18n/I18nContext";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
+import { Attachments } from "./Attachments";
 import * as api from "../api";
 
 const R = 26;
@@ -121,6 +122,7 @@ export function TotpDetail({
             </div>
           </div>
         )}
+        <Attachments entryId={entry.id} />
       </div>
 
       <div className="flex items-center justify-between p-4 border-t" style={{ borderColor: "var(--fv-border)" }}>

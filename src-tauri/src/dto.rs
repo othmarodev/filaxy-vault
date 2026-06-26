@@ -23,6 +23,13 @@ pub struct EntrySummary {
     /// Emoji icon ("" = default avatar) and optional expiry (unix seconds).
     pub icon: String,
     pub expires_at: Option<i64>,
+    pub attachment_count: usize,
+}
+
+#[derive(Serialize)]
+pub struct AttachmentInfo {
+    pub name: String,
+    pub size: usize,
 }
 
 #[derive(Serialize)]
@@ -53,6 +60,7 @@ pub fn from_entry(e: &Entry) -> EntrySummary {
         group: e.group.clone(),
         icon: e.icon.clone(),
         expires_at: e.expires_at,
+        attachment_count: e.attachments.len(),
     }
 }
 

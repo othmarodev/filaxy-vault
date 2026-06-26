@@ -29,6 +29,14 @@ pub struct CustomField {
     pub protected: bool,
 }
 
+/// A file attached to an entry. Bytes are stored (and encrypted) inside the vault.
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug, Default)]
+pub struct Attachment {
+    pub name: String,
+    #[serde(with = "serde_bytes")]
+    pub data: Vec<u8>,
+}
+
 /// Crypto-wallet recovery phrase payload (BIP39). The words are secrets and are
 /// encrypted with the rest of the vault.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug, Default)]
@@ -81,6 +89,8 @@ pub struct Entry {
     pub expires_at: Option<i64>,
     #[serde(default)]
     pub icon: String,
+    #[serde(default)]
+    pub attachments: Vec<Attachment>,
 }
 
 impl Entry {
@@ -108,6 +118,7 @@ impl Entry {
             custom_fields: Vec::new(),
             expires_at: None,
             icon: String::new(),
+            attachments: Vec::new(),
         }
     }
 
