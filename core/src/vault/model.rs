@@ -58,6 +58,13 @@ pub struct Entry {
     pub totp_digits: Option<u32>,
     #[serde(default)]
     pub totp_period: Option<u32>,
+    /// Organization: starred, soft-deleted (trash), and folder name ("" = none).
+    #[serde(default)]
+    pub favorite: bool,
+    #[serde(default)]
+    pub trashed: bool,
+    #[serde(default)]
+    pub group: String,
 }
 
 impl Entry {
@@ -79,6 +86,9 @@ impl Entry {
             totp_algo: None,
             totp_digits: None,
             totp_period: None,
+            favorite: false,
+            trashed: false,
+            group: String::new(),
         }
     }
 

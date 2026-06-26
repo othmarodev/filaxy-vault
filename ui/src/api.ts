@@ -20,15 +20,19 @@ export const getEntrySecret = (id: string) => invoke<EntrySecret>("get_entry_sec
 
 export const addEntry = (
   title: string, username: string, password: string, url: string, notes: string,
-  tags: string[], totpSecret?: string,
-) => invoke<string>("add_entry", { title, username, password, url, notes, tags, totpSecret: totpSecret ?? null });
+  tags: string[], totpSecret: string | undefined, group: string,
+) => invoke<string>("add_entry", { title, username, password, url, notes, tags, totpSecret: totpSecret ?? null, group });
 
 export const updateEntry = (
   id: string, title: string, username: string, password: string, url: string, notes: string,
-  tags: string[], totpSecret?: string,
-) => invoke<void>("update_entry", { id, title, username, password, url, notes, tags, totpSecret: totpSecret ?? null });
+  tags: string[], totpSecret: string | undefined, group: string,
+) => invoke<void>("update_entry", { id, title, username, password, url, notes, tags, totpSecret: totpSecret ?? null, group });
 
 export const deleteEntry = (id: string) => invoke<void>("delete_entry", { id });
+export const restoreEntry = (id: string) => invoke<void>("restore_entry", { id });
+export const deleteForever = (id: string) => invoke<void>("delete_forever", { id });
+export const emptyTrash = () => invoke<number>("empty_trash");
+export const toggleFavorite = (id: string) => invoke<boolean>("toggle_favorite", { id });
 
 export const generatePassword = (o: GenOpts) =>
   invoke<string>("generate_password", {

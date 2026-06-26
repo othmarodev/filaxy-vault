@@ -16,6 +16,10 @@ pub struct EntrySummary {
     /// TOTP display params (default 6 / 30) so the UI formats the code and the ring correctly.
     pub totp_digits: u32,
     pub totp_period: u32,
+    /// Organization.
+    pub favorite: bool,
+    pub trashed: bool,
+    pub group: String,
 }
 
 pub fn from_entry(e: &Entry) -> EntrySummary {
@@ -34,6 +38,9 @@ pub fn from_entry(e: &Entry) -> EntrySummary {
         word_count: e.seed.as_ref().map(|s| s.words.len()).unwrap_or(0),
         totp_digits: e.totp_digits.unwrap_or(6),
         totp_period: e.totp_period.unwrap_or(30),
+        favorite: e.favorite,
+        trashed: e.trashed,
+        group: e.group.clone(),
     }
 }
 

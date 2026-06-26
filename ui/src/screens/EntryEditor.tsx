@@ -22,6 +22,7 @@ export function EntryEditor({
   const [url, setUrl] = useState(entry?.url ?? "");
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState(entry?.tags.join(", ") ?? "");
+  const [group, setGroup] = useState(entry?.group ?? "");
   const [totpSecret, setTotpSecret] = useState("");
   const [showGen, setShowGen] = useState(false);
 
@@ -34,8 +35,9 @@ export function EntryEditor({
   const save = async () => {
     const tagArr = tags.split(",").map((s) => s.trim()).filter(Boolean);
     const totp = totpSecret.trim() || undefined;
-    if (id) await api.updateEntry(id, title, username, password, url, notes, tagArr, totp);
-    else await api.addEntry(title, username, password, url, notes, tagArr, totp);
+    const grp = group.trim();
+    if (id) await api.updateEntry(id, title, username, password, url, notes, tagArr, totp, grp);
+    else await api.addEntry(title, username, password, url, notes, tagArr, totp, grp);
     onClose();
   };
 
@@ -81,9 +83,15 @@ export function EntryEditor({
           <label className={labelCls} style={labelStyle}>{t("notes")}</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} style={inputStyle} rows={3} />
         </div>
-        <div>
-          <label className={labelCls} style={labelStyle}>{t("tags")}</label>
-          <input placeholder="dev, personal" value={tags} onChange={(e) => setTags(e.target.value)} className={inputCls} style={inputStyle} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls} style={labelStyle}>{t("tags")}</label>
+            <input placeholder="dev, personal" value={tags} onChange={(e) => setTags(e.target.value)} className={inputCls} style={inputStyle} />
+          </div>
+          <div>
+            <label className={labelCls} style={labelStyle}>{t("folder")}</label>
+            <input placeholder="Work, Banking…" value={group} onChange={(e) => setGroup(e.target.value)} className={inputCls} style={inputStyle} />
+          </div>
         </div>
       </div>
 

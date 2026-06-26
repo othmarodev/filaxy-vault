@@ -16,7 +16,7 @@ import { GaImport } from "./GaImport";
 import { SettingsScreen } from "./SettingsScreen";
 import * as api from "../api";
 
-type Filter = { kind: "all" | "crypto" | "totp" | "tag"; tag?: string };
+type Filter = { kind: "all" | "favorites" | "crypto" | "totp" | "trash" | "tag" | "group"; tag?: string; group?: string };
 type Editing = { id: string | null; kind: "login" | "seed" | "totp" };
 
 function NavItem({
@@ -69,15 +69,28 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
 
   const tags = useMemo(() => {
     const set = new Set<string>();
-    entries.forEach((e) => e.tags.forEach((tg) => set.add(tg)));
+    entries.forEach((e) => { if (!e.trashed) e.tags.forEach((tg) => set.add(tg)); });
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [entries]);
 
+  const groups = useMemo(() => {
+    const set = new Set<string>();
+    entries.forEach((e) => { if (!e.trashed && e.group) set.add(e.group); });
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const trashCount = useMemo(() => entries.filter((e) => e.trashed).length, [entries]);
+  const inTrash = filter.kind === "trash";
+
   const visible = useMemo(() => {
-    if (filter.kind === "crypto") return entries.filter((e) => e.kind === "seed");
-    if (filter.kind === "totp") return entries.filter((e) => e.kind === "totp");
-    if (filter.kind === "tag" && filter.tag) return entries.filter((e) => e.tags.includes(filter.tag!));
-    return entries;
+    if (filter.kind === "trash") return entries.filter((e) => e.trashed);
+    const live = entries.filter((e) => !e.trashed);
+    if (filter.kind === "favorites") return live.filter((e) => e.favorite);
+    if (filter.kind === "crypto") return live.filter((e) => e.kind === "seed");
+    if (filter.kind === "totp") return live.filter((e) => e.kind === "totp");
+    if (filter.kind === "tag" && filter.tag) return live.filter((e) => e.tags.includes(filter.tag!));
+    if (filter.kind === "group" && filter.group) return live.filter((e) => e.group === filter.group);
+    return live;
   }, [entries, filter]);
 
   const selected = visible.find((e) => e.id === selectedId) ?? entries.find((e) => e.id === selectedId) ?? null;
@@ -112,6 +125,36 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
     });
   };
   const deleteChecked = () => requestDelete([...checked], t("confirmDeleteMany"));
+
+  const toggleFav = async (id: string) => { try { await api.toggleFavorite(id); reload(); } catch { /* ignore */ } };
+
+  const restoreIds = async (ids: string[]) => {
+    for (const id of ids) { try { await api.restoreEntry(id); } catch { /* ignore */ } }
+    clearChecked();
+    reload();
+  };
+
+  const requestDeleteForever = (ids: string[]) => {
+    if (ids.length === 0) return;
+    setConfirmDlg({
+      message: t("confirmDeleteMany"),
+      onConfirm: async () => {
+        for (const id of ids) { try { await api.deleteForever(id); } catch { /* ignore */ } }
+        if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+        setChecked((prev) => { const n = new Set(prev); ids.forEach((i) => n.delete(i)); return n; });
+        setConfirmDlg(null);
+        reload();
+      },
+    });
+  };
+
+  const requestEmptyTrash = () => setConfirmDlg({
+    message: t("confirmEmptyTrash"),
+    onConfirm: async () => { await api.emptyTrash(); setSelectedId(null); clearChecked(); setConfirmDlg(null); reload(); },
+  });
+
+  // delete from a detail view: soft-delete normally, permanent when already in trash
+  const deleteFromDetail = (id: string) => inTrash ? requestDeleteForever([id]) : requestDelete([id], t("confirmDelete"));
   // clear selection when switching category/search
   useEffect(() => { setChecked(new Set()); }, [filter, query]);
 
@@ -148,11 +191,21 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
         </div>
         <nav className="px-2 space-y-0.5">
           <NavItem label={t("allItems")} icon="◆" active={filter.kind === "all"} onClick={() => setFilter({ kind: "all" })} />
-          <NavItem label={t("favorites")} icon="★" soon />
+          <NavItem label={t("favorites")} icon="★" active={filter.kind === "favorites"} onClick={() => setFilter({ kind: "favorites" })} />
           <NavItem label={t("crypto")} icon="🪙" active={filter.kind === "crypto"} onClick={() => setFilter({ kind: "crypto" })} />
           <NavItem label={t("authenticator")} icon="⏱️" active={filter.kind === "totp"} onClick={() => setFilter({ kind: "totp" })} />
-          <NavItem label={t("trash")} icon="🗑" soon />
+          <NavItem label={`${t("trash")}${trashCount ? ` (${trashCount})` : ""}`} icon="🗑" active={filter.kind === "trash"} onClick={() => setFilter({ kind: "trash" })} />
         </nav>
+        {groups.length > 0 && (
+          <div className="px-2 mt-4">
+            <div className="px-3 mb-1 text-[11px] uppercase tracking-wide" style={{ color: "var(--fv-faint)" }}>{t("folders")}</div>
+            <div className="space-y-0.5">
+              {groups.map((g) => (
+                <NavItem key={g} label={g} icon="🗂" active={filter.kind === "group" && filter.group === g} onClick={() => setFilter({ kind: "group", group: g })} />
+              ))}
+            </div>
+          </div>
+        )}
         {tags.length > 0 && (
           <div className="px-2 mt-4 flex-1 overflow-auto">
             <div className="px-3 mb-1 text-[11px] uppercase tracking-wide" style={{ color: "var(--fv-faint)" }}>{t("tags")}</div>
@@ -181,6 +234,11 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
             style={inputStyle}
           />
         </div>
+        {inTrash && visible.length > 0 && checked.size === 0 && (
+          <div className="mx-3 mb-2">
+            <Button variant="danger" onClick={requestEmptyTrash} className="w-full !py-1.5 text-sm">🗑 {t("emptyTrash")}</Button>
+          </div>
+        )}
         {checked.size > 0 && (
           <div className="mx-3 mb-2 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 fv-fade-in" style={{ background: "var(--fv-surface-2)" }}>
             <span className="text-sm font-medium flex-1 min-w-0 truncate" style={{ color: "var(--fv-text)" }}>
@@ -193,7 +251,14 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
               className="fv-icon-btn grid place-items-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"
               style={{ color: "var(--fv-violet)" }}
             >▣</button>
-            <Button variant="danger" onClick={() => void deleteChecked()} className="!px-3 !py-1.5 text-sm">🗑 {t("delete")}</Button>
+            {inTrash ? (
+              <>
+                <Button variant="ghost" onClick={() => void restoreIds([...checked])} className="!px-3 !py-1.5 text-sm">↩ {t("restore")}</Button>
+                <Button variant="danger" onClick={() => requestDeleteForever([...checked])} className="!px-2.5 !py-1.5 text-sm" title={t("deleteForever")}>🗑</Button>
+              </>
+            ) : (
+              <Button variant="danger" onClick={() => void deleteChecked()} className="!px-3 !py-1.5 text-sm">🗑 {t("delete")}</Button>
+            )}
             <button
               onClick={clearChecked}
               title={t("clearSel")}
@@ -207,9 +272,9 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
           {visible.length === 0 ? (
             <div className="h-full grid place-items-center text-center px-6" style={{ color: "var(--fv-faint)" }}>
               <div>
-                <div className="text-3xl mb-2">{filter.kind === "crypto" ? "🪙" : filter.kind === "totp" ? "⏱️" : "🗝️"}</div>
-                <div className="font-medium" style={{ color: "var(--fv-muted)" }}>{filter.kind === "crypto" ? t("noSeeds") : filter.kind === "totp" ? t("noTotp") : t("noEntries")}</div>
-                <div className="text-sm mt-1">{filter.kind === "crypto" ? t("noSeedsHint") : filter.kind === "totp" ? t("noTotpHint") : t("noEntriesHint")}</div>
+                <div className="text-3xl mb-2">{filter.kind === "crypto" ? "🪙" : filter.kind === "totp" ? "⏱️" : filter.kind === "trash" ? "🗑" : filter.kind === "favorites" ? "★" : "🗝️"}</div>
+                <div className="font-medium" style={{ color: "var(--fv-muted)" }}>{filter.kind === "crypto" ? t("noSeeds") : filter.kind === "totp" ? t("noTotp") : filter.kind === "trash" ? t("trashEmpty") : t("noEntries")}</div>
+                <div className="text-sm mt-1">{filter.kind === "crypto" ? t("noSeedsHint") : filter.kind === "totp" ? t("noTotpHint") : filter.kind === "trash" ? "" : t("noEntriesHint")}</div>
                 {filter.kind === "totp" && (
                   <div className="mt-4">
                     <Button onClick={() => setShowGa(true)}>📷 {t("gaImport")}</Button>
@@ -257,6 +322,22 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
                           <div className="truncate text-xs" style={{ color: "var(--fv-muted)" }}>{subtitle}</div>
                         </div>
                       </button>
+                      {inTrash ? (
+                        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => void restoreIds([e.id])} title={t("restore")} aria-label={t("restore")}
+                            className="fv-icon-btn grid place-items-center w-7 h-7 rounded-lg hover:bg-black/5 dark:hover:bg-white/10" style={{ color: "var(--fv-violet)" }}>↩</button>
+                          <button onClick={() => requestDeleteForever([e.id])} title={t("deleteForever")} aria-label={t("deleteForever")}
+                            className="fv-icon-btn grid place-items-center w-7 h-7 rounded-lg hover:bg-red-500/10" style={{ color: "#ef4444" }}>🗑</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => void toggleFav(e.id)}
+                          title={t("favorites")}
+                          aria-label={t("favorites")}
+                          className={`fv-icon-btn grid place-items-center w-7 h-7 rounded-lg shrink-0 transition-opacity ${e.favorite ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                          style={{ color: e.favorite ? "#f59e0b" : "var(--fv-faint)" }}
+                        >{e.favorite ? "★" : "☆"}</button>
+                      )}
                     </div>
                   </li>
                 );
@@ -274,21 +355,21 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
               key={`${selected.id}:${reloadKey}`}
               entry={selected}
               onEdit={() => setEditing({ id: selected.id, kind: "seed" })}
-              onDelete={() => requestDelete([selected.id], t("confirmDelete"))}
+              onDelete={() => deleteFromDetail(selected.id)}
             />
           ) : selected.kind === "totp" ? (
             <TotpDetail
               key={`${selected.id}:${reloadKey}`}
               entry={selected}
               onEdit={() => setEditing({ id: selected.id, kind: "totp" })}
-              onDelete={() => requestDelete([selected.id], t("confirmDelete"))}
+              onDelete={() => deleteFromDetail(selected.id)}
             />
           ) : (
             <EntryDetail
               key={`${selected.id}:${reloadKey}`}
               entry={selected}
               onEdit={() => setEditing({ id: selected.id, kind: "login" })}
-              onDelete={() => requestDelete([selected.id], t("confirmDelete"))}
+              onDelete={() => deleteFromDetail(selected.id)}
             />
           )
         ) : (

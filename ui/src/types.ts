@@ -9,6 +9,9 @@ export interface EntrySummary {
   word_count: number;
   totp_digits: number;
   totp_period: number;
+  favorite: boolean;
+  trashed: boolean;
+  group: string;
 }
 export interface EntrySecret {
   password: string;
