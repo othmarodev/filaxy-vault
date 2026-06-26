@@ -5,25 +5,20 @@ import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { EntryDetail } from "../components/EntryDetail";
+import { SeedDetail } from "../components/SeedDetail";
 import { EntryEditor } from "./EntryEditor";
+import { SeedEditor } from "./SeedEditor";
 import { ImportWizard } from "./ImportWizard";
 import { SettingsScreen } from "./SettingsScreen";
 import * as api from "../api";
 
-type Filter = { kind: "all" | "tag"; tag?: string };
+type Filter = { kind: "all" | "crypto" | "tag"; tag?: string };
+type Editing = { id: string | null; kind: "login" | "seed" };
 
 function NavItem({
-  label,
-  icon,
-  active,
-  soon,
-  onClick,
+  label, icon, active, soon, onClick,
 }: {
-  label: string;
-  icon: string;
-  active?: boolean;
-  soon?: boolean;
-  onClick?: () => void;
+  label: string; icon: string; active?: boolean; soon?: boolean; onClick?: () => void;
 }) {
   return (
     <button
@@ -52,7 +47,8 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [editing, setEditing] = useState<{ id: string | null } | null>(null);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [newMenu, setNewMenu] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -71,25 +67,44 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
   }, [entries]);
 
   const visible = useMemo(() => {
+    if (filter.kind === "crypto") return entries.filter((e) => e.kind === "seed");
     if (filter.kind === "tag" && filter.tag) return entries.filter((e) => e.tags.includes(filter.tag!));
     return entries;
   }, [entries, filter]);
 
   const selected = visible.find((e) => e.id === selectedId) ?? entries.find((e) => e.id === selectedId) ?? null;
+  const editingEntry = editing?.id ? entries.find((e) => e.id === editing.id) : undefined;
 
   const inputStyle = { background: "var(--fv-surface-2)", borderColor: "var(--fv-border)" } as const;
+
+  const startNew = (kind: "login" | "seed") => { setNewMenu(false); setEditing({ id: null, kind }); };
 
   return (
     <div className="h-full grid" style={{ gridTemplateColumns: "240px 340px 1fr" }}>
       {/* ── Sidebar ── */}
       <aside className="flex flex-col border-r" style={{ borderColor: "var(--fv-border)", background: "var(--fv-surface)" }}>
-        <div className="p-3">
-          <Button onClick={() => setEditing({ id: null })} className="w-full">+ {t("newEntry")}</Button>
+        <div className="p-3 relative">
+          <Button onClick={() => setNewMenu((v) => !v)} className="w-full">+ {t("newEntry")}</Button>
+          {newMenu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setNewMenu(false)} />
+              <div className="fv-fade-in absolute left-3 right-3 mt-1 z-20 rounded-xl border overflow-hidden" style={{ background: "var(--fv-surface)", borderColor: "var(--fv-border)", boxShadow: "var(--fv-shadow)" }}>
+                <button className="fv-row w-full text-left px-3 py-2.5 text-sm flex items-center gap-2" style={{ color: "var(--fv-text)" }} onClick={() => startNew("login")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  🔑 {t("newPassword")}
+                </button>
+                <button className="fv-row w-full text-left px-3 py-2.5 text-sm flex items-center gap-2" style={{ color: "var(--fv-text)" }} onClick={() => startNew("seed")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  🪙 {t("seedPhrase")}
+                </button>
+              </div>
+            </>
+          )}
         </div>
         <nav className="px-2 space-y-0.5">
           <NavItem label={t("allItems")} icon="◆" active={filter.kind === "all"} onClick={() => setFilter({ kind: "all" })} />
           <NavItem label={t("favorites")} icon="★" soon />
-          <NavItem label="Crypto" icon="🪙" soon />
+          <NavItem label={t("crypto")} icon="🪙" active={filter.kind === "crypto"} onClick={() => setFilter({ kind: "crypto" })} />
           <NavItem label={t("trash")} icon="🗑" soon />
         </nav>
         {tags.length > 0 && (
@@ -97,13 +112,7 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
             <div className="px-3 mb-1 text-[11px] uppercase tracking-wide" style={{ color: "var(--fv-faint)" }}>{t("tags")}</div>
             <div className="space-y-0.5">
               {tags.map((tg) => (
-                <NavItem
-                  key={tg}
-                  label={tg}
-                  icon="#"
-                  active={filter.kind === "tag" && filter.tag === tg}
-                  onClick={() => setFilter({ kind: "tag", tag: tg })}
-                />
+                <NavItem key={tg} label={tg} icon="#" active={filter.kind === "tag" && filter.tag === tg} onClick={() => setFilter({ kind: "tag", tag: tg })} />
               ))}
             </div>
           </div>
@@ -130,15 +139,16 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
           {visible.length === 0 ? (
             <div className="h-full grid place-items-center text-center px-6" style={{ color: "var(--fv-faint)" }}>
               <div>
-                <div className="text-3xl mb-2">🗝️</div>
-                <div className="font-medium" style={{ color: "var(--fv-muted)" }}>{t("noEntries")}</div>
-                <div className="text-sm mt-1">{t("noEntriesHint")}</div>
+                <div className="text-3xl mb-2">{filter.kind === "crypto" ? "🪙" : "🗝️"}</div>
+                <div className="font-medium" style={{ color: "var(--fv-muted)" }}>{filter.kind === "crypto" ? t("noSeeds") : t("noEntries")}</div>
+                <div className="text-sm mt-1">{filter.kind === "crypto" ? t("noSeedsHint") : t("noEntriesHint")}</div>
               </div>
             </div>
           ) : (
             <ul className="space-y-1">
               {visible.map((e) => {
                 const active = e.id === selectedId;
+                const isSeed = e.kind === "seed";
                 return (
                   <li key={e.id}>
                     <button
@@ -148,13 +158,13 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
                       onMouseEnter={(ev) => { if (!active) ev.currentTarget.style.background = "var(--fv-hover)"; }}
                       onMouseLeave={(ev) => { if (!active) ev.currentTarget.style.background = "transparent"; }}
                     >
-                      <Avatar label={e.title || e.url || e.username} size={34} />
+                      <Avatar label={(isSeed ? "🪙 " : "") + (e.title || e.url || e.username)} size={34} />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium text-sm" style={{ color: "var(--fv-text)" }}>
                           {e.title || e.url || e.username || t("empty")}
                         </div>
                         <div className="truncate text-xs" style={{ color: "var(--fv-muted)" }}>
-                          {e.username || e.url}{e.has_totp ? " · TOTP" : ""}
+                          {isSeed ? `🪙 ${e.word_count} ${t("wordCount").toLowerCase()}` : `${e.username || e.url}${e.has_totp ? " · TOTP" : ""}`}
                         </div>
                       </div>
                     </button>
@@ -169,17 +179,21 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
       {/* ── Detail ── */}
       <section className="min-h-0" style={{ background: "transparent" }}>
         {selected ? (
-          <EntryDetail
-            key={`${selected.id}:${reloadKey}`}
-            entry={selected}
-            onEdit={() => setEditing({ id: selected.id })}
-            onDelete={async () => {
-              if (!confirm(t("confirmDelete"))) return;
-              await api.deleteEntry(selected.id);
-              setSelectedId(null);
-              reload();
-            }}
-          />
+          selected.kind === "seed" ? (
+            <SeedDetail
+              key={`${selected.id}:${reloadKey}`}
+              entry={selected}
+              onEdit={() => setEditing({ id: selected.id, kind: "seed" })}
+              onDelete={async () => { if (!confirm(t("confirmDelete"))) return; await api.deleteEntry(selected.id); setSelectedId(null); reload(); }}
+            />
+          ) : (
+            <EntryDetail
+              key={`${selected.id}:${reloadKey}`}
+              entry={selected}
+              onEdit={() => setEditing({ id: selected.id, kind: "login" })}
+              onDelete={async () => { if (!confirm(t("confirmDelete"))) return; await api.deleteEntry(selected.id); setSelectedId(null); reload(); }}
+            />
+          )
         ) : (
           <div className="h-full grid place-items-center text-center px-8" style={{ color: "var(--fv-faint)" }}>
             <div>
@@ -192,18 +206,20 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
       </section>
 
       {/* ── Modals ── */}
-      <Modal open={!!editing} onClose={() => setEditing(null)} maxWidth="36rem">
-        {editing && (
+      <Modal open={!!editing} onClose={() => setEditing(null)} maxWidth={editing?.kind === "seed" ? "42rem" : "36rem"}>
+        {editing && (editing.kind === "seed" ? (
+          <SeedEditor
+            id={editing.id}
+            entry={editingEntry}
+            onClose={() => { if (editing.id) setSelectedId(editing.id); setEditing(null); reload(); }}
+          />
+        ) : (
           <EntryEditor
             id={editing.id}
-            entry={editing.id ? entries.find((e) => e.id === editing.id) : undefined}
-            onClose={() => {
-              if (editing.id) setSelectedId(editing.id);
-              setEditing(null);
-              reload();
-            }}
+            entry={editingEntry}
+            onClose={() => { if (editing.id) setSelectedId(editing.id); setEditing(null); reload(); }}
           />
-        )}
+        ))}
       </Modal>
       <Modal open={showImport} onClose={() => setShowImport(false)} maxWidth="44rem">
         <ImportWizard onDone={() => { setShowImport(false); reload(); }} />

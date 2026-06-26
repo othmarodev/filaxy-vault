@@ -1,4 +1,4 @@
-use filaxy_vault_core::vault::model::Entry;
+use filaxy_vault_core::vault::model::{Entry, EntryKind};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -9,6 +9,10 @@ pub struct EntrySummary {
     pub url: String,
     pub tags: Vec<String>,
     pub has_totp: bool,
+    /// "login" or "seed" — lets the UI route to the right detail/editor view.
+    pub kind: String,
+    /// For seed entries: number of words (so the list can show a hint). 0 otherwise.
+    pub word_count: usize,
 }
 
 pub fn from_entry(e: &Entry) -> EntrySummary {
@@ -19,6 +23,8 @@ pub fn from_entry(e: &Entry) -> EntrySummary {
         url: e.url.clone(),
         tags: e.tags.clone(),
         has_totp: e.totp_secret.is_some(),
+        kind: match e.kind { EntryKind::Login => "login".into(), EntryKind::Seed => "seed".into() },
+        word_count: e.seed.as_ref().map(|s| s.words.len()).unwrap_or(0),
     }
 }
 
@@ -27,6 +33,16 @@ pub struct EntrySecret {
     pub password: String,
     pub notes: String,
     pub totp_code: Option<String>,
+}
+
+/// Sensitive payload for a seed-phrase entry. Returned only on explicit request.
+#[derive(Serialize)]
+pub struct SeedSecret {
+    pub words: Vec<String>,
+    pub network: String,
+    pub derivation_path: String,
+    pub passphrase: String,
+    pub notes: String,
 }
 
 #[cfg(test)]

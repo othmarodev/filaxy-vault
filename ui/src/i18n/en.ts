@@ -50,6 +50,21 @@ export const en = {
   onboardSubtitle: "One password to rule them all. Stored encrypted on this device — never in the cloud.",
   onboardFootnote: "Choose a strong password you'll remember. It can't be recovered.",
   unlockSubtitle: "Enter your master password to open your vault.",
+  crypto: "Crypto",
+  seedPhrase: "Seed phrase",
+  newPassword: "Password",
+  walletName: "Wallet name",
+  network: "Network",
+  wordCount: "Words",
+  derivationPath: "Derivation path",
+  passphraseField: "Passphrase (25th word, optional)",
+  seedWarning: "Anyone with these words can steal your funds. Never share them, photograph them, or type them on a website.",
+  revealSeed: "Reveal phrase",
+  hideSeed: "Hide phrase",
+  noSeeds: "No seed phrases yet",
+  noSeedsHint: "Store a crypto wallet recovery phrase, fully encrypted.",
+  newSeedTitle: "New seed phrase",
+  pasteSeedHint: "Tip: paste your whole phrase here and it fills the slots.",
 } as const;
 // Keys come from `en`; values widened to `string` so locale dicts (es.ts) can
 // hold translated strings without each one being typed as the English literal.

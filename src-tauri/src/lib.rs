@@ -40,7 +40,10 @@ pub fn run() {
             commands::remember_on_device,
             commands::forget_device,
             commands::unlock_with_device,
-            commands::totp_now
+            commands::totp_now,
+            commands::add_seed_entry,
+            commands::update_seed_entry,
+            commands::get_seed_secret
         ])
         .run(tauri::generate_context!())
         .expect("error while running Filaxy Vault");

@@ -7,6 +7,26 @@ pub struct EntryVersion {
     pub edited_at: i64,
 }
 
+/// What kind of secret an entry holds. `Login` is the default so vaults written
+/// before this field existed deserialize correctly.
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Debug, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryKind {
+    #[default]
+    Login,
+    Seed,
+}
+
+/// Crypto-wallet recovery phrase payload (BIP39). The words are secrets and are
+/// encrypted with the rest of the vault.
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug, Default)]
+pub struct SeedData {
+    pub words: Vec<String>,
+    pub network: String,
+    pub derivation_path: String,
+    pub passphrase: String,
+}
+
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Entry {
     pub id: Uuid,
@@ -20,6 +40,12 @@ pub struct Entry {
     pub created_at: i64,
     pub updated_at: i64,
     pub history: Vec<EntryVersion>,
+    /// Discriminator + optional seed payload. `#[serde(default)]` keeps old
+    /// vault files (without these fields) loadable.
+    #[serde(default)]
+    pub kind: EntryKind,
+    #[serde(default)]
+    pub seed: Option<SeedData>,
 }
 
 impl Entry {
@@ -36,7 +62,19 @@ impl Entry {
             created_at: 0,
             updated_at: 0,
             history: Vec::new(),
+            kind: EntryKind::Login,
+            seed: None,
         }
+    }
+
+    /// Create a new seed-phrase (crypto wallet) entry.
+    pub fn new_seed(title: impl Into<String>, seed: SeedData, now: i64) -> Self {
+        let mut e = Entry::new(title);
+        e.kind = EntryKind::Seed;
+        e.seed = Some(seed);
+        e.created_at = now;
+        e.updated_at = now;
+        e
     }
 
     /// Replace the password, archiving the previous non-empty one in history.
@@ -79,5 +117,27 @@ mod tests {
         assert_eq!(e.history.len(), 1);
         assert_eq!(e.history[0].password, "old");
         assert_eq!(e.history[0].edited_at, 200);
+    }
+
+    #[test]
+    fn default_entry_is_login_kind() {
+        assert_eq!(Entry::new("x").kind, EntryKind::Login);
+        assert!(Entry::new("x").seed.is_none());
+    }
+
+    #[test]
+    fn new_seed_entry_holds_words() {
+        let seed = SeedData {
+            words: vec!["abandon".into(), "ability".into(), "able".into()],
+            network: "Bitcoin".into(),
+            derivation_path: "m/84'/0'/0'".into(),
+            passphrase: String::new(),
+        };
+        let e = Entry::new_seed("Ledger main", seed, 42);
+        assert_eq!(e.kind, EntryKind::Seed);
+        assert_eq!(e.created_at, 42);
+        let s = e.seed.unwrap();
+        assert_eq!(s.words.len(), 3);
+        assert_eq!(s.network, "Bitcoin");
     }
 }

@@ -5,11 +5,20 @@ export interface EntrySummary {
   url: string;
   tags: string[];
   has_totp: boolean;
+  kind: "login" | "seed";
+  word_count: number;
 }
 export interface EntrySecret {
   password: string;
   notes: string;
   totp_code: string | null;
+}
+export interface SeedSecret {
+  words: string[];
+  network: string;
+  derivation_path: string;
+  passphrase: string;
+  notes: string;
 }
 export interface Settings {
   autolock_secs: number;

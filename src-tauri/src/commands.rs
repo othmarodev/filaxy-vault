@@ -397,3 +397,82 @@ pub fn unlock_with_device(state: State<'_, Mutex<AppState>>, path: String) -> Re
     app.vault_path = Some(p);
     Ok(())
 }
+
+// ── Seed-phrase (crypto wallet) entries ──────────────────────────────────────
+use filaxy_vault_core::vault::model::SeedData;
+
+fn clean_words(words: Vec<String>) -> Vec<String> {
+    words.into_iter().map(|w| w.trim().to_lowercase()).collect()
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn add_seed_entry(
+    state: State<'_, Mutex<AppState>>,
+    title: String,
+    network: String,
+    words: Vec<String>,
+    derivation_path: String,
+    passphrase: String,
+    notes: String,
+    tags: Vec<String>,
+) -> Result<String, String> {
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let now = now_secs() as i64;
+    let id = {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        let seed = SeedData { words: clean_words(words), network, derivation_path, passphrase };
+        let mut e = Entry::new_seed(title, seed, now);
+        e.notes = notes;
+        e.tags = tags;
+        let id = e.id.to_string();
+        u.vault.add(e);
+        id
+    };
+    persist(&app)?;
+    Ok(id)
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn update_seed_entry(
+    state: State<'_, Mutex<AppState>>,
+    id: String,
+    title: String,
+    network: String,
+    words: Vec<String>,
+    derivation_path: String,
+    passphrase: String,
+    notes: String,
+    tags: Vec<String>,
+) -> Result<(), String> {
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let now = now_secs() as i64;
+    let uuid = parse_id(&id)?;
+    {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        let e = u.vault.get_mut(uuid).ok_or("not found")?;
+        e.title = title;
+        e.notes = notes;
+        e.tags = tags;
+        e.seed = Some(SeedData { words: clean_words(words), network, derivation_path, passphrase });
+        e.updated_at = now;
+    }
+    persist(&app)
+}
+
+#[tauri::command]
+pub fn get_seed_secret(state: State<'_, Mutex<AppState>>, id: String) -> Result<dto::SeedSecret, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let uuid = parse_id(&id)?;
+    let e = u.vault.get(uuid).ok_or("not found")?;
+    let seed = e.seed.as_ref().ok_or("not a seed entry")?;
+    Ok(dto::SeedSecret {
+        words: seed.words.clone(),
+        network: seed.network.clone(),
+        derivation_path: seed.derivation_path.clone(),
+        passphrase: seed.passphrase.clone(),
+        notes: e.notes.clone(),
+    })
+}

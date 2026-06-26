@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { EntrySummary, EntrySecret, Settings, ImportPreview, Mapping, GenOpts } from "./types";
+import type { EntrySummary, EntrySecret, SeedSecret, Settings, ImportPreview, Mapping, GenOpts } from "./types";
 
 export const vaultExists = (path: string) => invoke<boolean>("vault_exists", { path });
 
@@ -57,3 +57,16 @@ export const forgetDevice = () => invoke<void>("forget_device");
 export const unlockWithDevice = (path: string) => invoke<void>("unlock_with_device", { path });
 
 export const totpNow = (secret: string) => invoke<string>("totp_now", { secret });
+
+// ── Seed-phrase (crypto wallet) entries ──
+export const addSeedEntry = (
+  title: string, network: string, words: string[], derivationPath: string,
+  passphrase: string, notes: string, tags: string[],
+) => invoke<string>("add_seed_entry", { title, network, words, derivationPath, passphrase, notes, tags });
+
+export const updateSeedEntry = (
+  id: string, title: string, network: string, words: string[], derivationPath: string,
+  passphrase: string, notes: string, tags: string[],
+) => invoke<void>("update_seed_entry", { id, title, network, words, derivationPath, passphrase, notes, tags });
+
+export const getSeedSecret = (id: string) => invoke<SeedSecret>("get_seed_secret", { id });
