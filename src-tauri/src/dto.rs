@@ -33,6 +33,22 @@ pub struct AttachmentInfo {
 }
 
 #[derive(Serialize)]
+pub struct HealthItem {
+    pub id: String,
+    pub title: String,
+}
+
+#[derive(Serialize)]
+pub struct HealthReport {
+    pub weak: Vec<HealthItem>,
+    pub reused: Vec<HealthItem>,
+    pub old: Vec<HealthItem>,
+    pub expired: Vec<HealthItem>,
+    pub total: usize,
+    pub score: u8,
+}
+
+#[derive(Serialize)]
 pub struct CustomFieldDto {
     pub label: String,
     pub value: String,

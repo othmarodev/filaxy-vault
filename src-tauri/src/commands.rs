@@ -321,6 +321,24 @@ pub fn get_attachment(state: State<'_, Mutex<AppState>>, id: String, index: usiz
     Ok(base64::engine::general_purpose::STANDARD.encode(&a.data))
 }
 
+// ── Offline password-health report (no network) ──────────────────────────────
+#[tauri::command]
+pub fn health_report(state: State<'_, Mutex<AppState>>) -> Result<dto::HealthReport, String> {
+    use filaxy_vault_core::vault::health;
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let r = health::analyze(&u.vault.entries, now_secs() as i64);
+    let map = |v: Vec<health::HealthItem>| v.into_iter().map(|i| dto::HealthItem { id: i.id, title: i.title }).collect();
+    Ok(dto::HealthReport {
+        weak: map(r.weak),
+        reused: map(r.reused),
+        old: map(r.old),
+        expired: map(r.expired),
+        total: r.total,
+        score: r.score,
+    })
+}
+
 #[tauri::command]
 pub fn generate_password(
     length: usize, lower: bool, upper: bool, digits: bool, symbols: bool, exclude_ambiguous: bool,

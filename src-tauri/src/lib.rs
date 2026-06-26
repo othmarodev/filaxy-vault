@@ -52,6 +52,7 @@ pub fn run() {
             commands::add_attachment,
             commands::remove_attachment,
             commands::get_attachment,
+            commands::health_report,
             commands::add_totp_entry,
             commands::update_totp_entry,
             commands::get_totp_secret,

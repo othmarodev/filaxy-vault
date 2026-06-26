@@ -1,6 +1,7 @@
 pub mod model;
 pub mod format;
 pub mod store;
+pub mod health;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

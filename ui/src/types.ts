@@ -20,6 +20,18 @@ export interface AttachmentInfo {
   name: string;
   size: number;
 }
+export interface HealthItem {
+  id: string;
+  title: string;
+}
+export interface HealthReport {
+  weak: HealthItem[];
+  reused: HealthItem[];
+  old: HealthItem[];
+  expired: HealthItem[];
+  total: number;
+  score: number;
+}
 export interface CustomField {
   label: string;
   value: string;

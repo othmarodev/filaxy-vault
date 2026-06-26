@@ -13,10 +13,11 @@ import { SeedEditor } from "./SeedEditor";
 import { TotpEditor } from "./TotpEditor";
 import { ImportWizard } from "./ImportWizard";
 import { GaImport } from "./GaImport";
+import { HealthView } from "./HealthView";
 import { SettingsScreen } from "./SettingsScreen";
 import * as api from "../api";
 
-type Filter = { kind: "all" | "favorites" | "crypto" | "totp" | "trash" | "tag" | "group"; tag?: string; group?: string };
+type Filter = { kind: "all" | "favorites" | "crypto" | "totp" | "health" | "trash" | "tag" | "group"; tag?: string; group?: string };
 type Editing = { id: string | null; kind: "login" | "seed" | "totp" };
 
 function NavItem({
@@ -81,6 +82,7 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
 
   const trashCount = useMemo(() => entries.filter((e) => e.trashed).length, [entries]);
   const inTrash = filter.kind === "trash";
+  const inHealth = filter.kind === "health";
 
   const visible = useMemo(() => {
     if (filter.kind === "trash") return entries.filter((e) => e.trashed);
@@ -194,6 +196,7 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
           <NavItem label={t("favorites")} icon="★" active={filter.kind === "favorites"} onClick={() => setFilter({ kind: "favorites" })} />
           <NavItem label={t("crypto")} icon="🪙" active={filter.kind === "crypto"} onClick={() => setFilter({ kind: "crypto" })} />
           <NavItem label={t("authenticator")} icon="⏱️" active={filter.kind === "totp"} onClick={() => setFilter({ kind: "totp" })} />
+          <NavItem label={t("health")} icon="🩺" active={filter.kind === "health"} onClick={() => setFilter({ kind: "health" })} />
           <NavItem label={`${t("trash")}${trashCount ? ` (${trashCount})` : ""}`} icon="🗑" active={filter.kind === "trash"} onClick={() => setFilter({ kind: "trash" })} />
         </nav>
         {groups.length > 0 && (
@@ -223,6 +226,12 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
         </div>
       </aside>
 
+      {inHealth ? (
+        <section className="min-h-0" style={{ gridColumn: "2 / 4", background: "transparent" }}>
+          <HealthView onOpenEntry={(id) => { setFilter({ kind: "all" }); setSelectedId(id); }} />
+        </section>
+      ) : (
+       <>
       {/* ── Entry list ── */}
       <section className="flex flex-col border-r min-h-0" style={{ borderColor: "var(--fv-border)", background: "var(--fv-surface)" }}>
         <div className="p-3">
@@ -382,6 +391,8 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
           </div>
         )}
       </section>
+       </>
+      )}
 
       {/* ── Modals ── */}
       <Modal open={!!editing} onClose={() => setEditing(null)} maxWidth={editing?.kind === "seed" ? "42rem" : "36rem"}>
