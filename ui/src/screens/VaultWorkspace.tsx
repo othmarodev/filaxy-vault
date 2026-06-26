@@ -4,16 +4,20 @@ import { useT } from "../i18n/I18nContext";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EntryDetail } from "../components/EntryDetail";
 import { SeedDetail } from "../components/SeedDetail";
+import { TotpDetail } from "../components/TotpDetail";
 import { EntryEditor } from "./EntryEditor";
 import { SeedEditor } from "./SeedEditor";
+import { TotpEditor } from "./TotpEditor";
 import { ImportWizard } from "./ImportWizard";
+import { GaImport } from "./GaImport";
 import { SettingsScreen } from "./SettingsScreen";
 import * as api from "../api";
 
-type Filter = { kind: "all" | "crypto" | "tag"; tag?: string };
-type Editing = { id: string | null; kind: "login" | "seed" };
+type Filter = { kind: "all" | "crypto" | "totp" | "tag"; tag?: string };
+type Editing = { id: string | null; kind: "login" | "seed" | "totp" };
 
 function NavItem({
   label, icon, active, soon, onClick,
@@ -46,11 +50,14 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
   const [reloadKey, setReloadKey] = useState(0);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [newMenu, setNewMenu] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showGa, setShowGa] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [confirmDlg, setConfirmDlg] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
     const run = () => (query ? api.searchEntries(query) : api.listEntries()).then(setEntries).catch(() => {});
@@ -68,6 +75,7 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
 
   const visible = useMemo(() => {
     if (filter.kind === "crypto") return entries.filter((e) => e.kind === "seed");
+    if (filter.kind === "totp") return entries.filter((e) => e.kind === "totp");
     if (filter.kind === "tag" && filter.tag) return entries.filter((e) => e.tags.includes(filter.tag!));
     return entries;
   }, [entries, filter]);
@@ -77,7 +85,35 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
 
   const inputStyle = { background: "var(--fv-surface-2)", borderColor: "var(--fv-border)" } as const;
 
-  const startNew = (kind: "login" | "seed") => { setNewMenu(false); setEditing({ id: null, kind }); };
+  const startNew = (kind: "login" | "seed" | "totp") => { setNewMenu(false); setEditing({ id: null, kind }); };
+
+  // ── multi-select / bulk delete ──
+  const toggleCheck = (id: string) => setChecked((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const allVisibleChecked = visible.length > 0 && visible.every((e) => checked.has(e.id));
+  const toggleAll = () => setChecked(() => allVisibleChecked ? new Set<string>() : new Set(visible.map((e) => e.id)));
+  const clearChecked = () => setChecked(new Set());
+
+  // Centralized destructive-delete: ALWAYS goes through the confirm popup.
+  const requestDelete = (ids: string[], message: string) => {
+    if (ids.length === 0) return;
+    setConfirmDlg({
+      message,
+      onConfirm: async () => {
+        for (const id of ids) { try { await api.deleteEntry(id); } catch { /* ignore */ } }
+        if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+        setChecked((prev) => { const n = new Set(prev); ids.forEach((i) => n.delete(i)); return n; });
+        setConfirmDlg(null);
+        reload();
+      },
+    });
+  };
+  const deleteChecked = () => requestDelete([...checked], t("confirmDeleteMany"));
+  // clear selection when switching category/search
+  useEffect(() => { setChecked(new Set()); }, [filter, query]);
 
   return (
     <div className="h-full grid" style={{ gridTemplateColumns: "240px 340px 1fr" }}>
@@ -97,6 +133,15 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                   🪙 {t("seedPhrase")}
                 </button>
+                <button className="fv-row w-full text-left px-3 py-2.5 text-sm flex items-center gap-2" style={{ color: "var(--fv-text)" }} onClick={() => startNew("totp")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  ⏱️ {t("newTotp")}
+                </button>
+                <div className="border-t" style={{ borderColor: "var(--fv-border)" }} />
+                <button className="fv-row w-full text-left px-3 py-2.5 text-sm flex items-center gap-2" style={{ color: "var(--fv-text)" }} onClick={() => { setNewMenu(false); setShowGa(true); }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  📷 {t("gaImport")}
+                </button>
               </div>
             </>
           )}
@@ -105,6 +150,7 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
           <NavItem label={t("allItems")} icon="◆" active={filter.kind === "all"} onClick={() => setFilter({ kind: "all" })} />
           <NavItem label={t("favorites")} icon="★" soon />
           <NavItem label={t("crypto")} icon="🪙" active={filter.kind === "crypto"} onClick={() => setFilter({ kind: "crypto" })} />
+          <NavItem label={t("authenticator")} icon="⏱️" active={filter.kind === "totp"} onClick={() => setFilter({ kind: "totp" })} />
           <NavItem label={t("trash")} icon="🗑" soon />
         </nav>
         {tags.length > 0 && (
@@ -135,39 +181,83 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
             style={inputStyle}
           />
         </div>
+        {checked.size > 0 && (
+          <div className="mx-3 mb-2 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 fv-fade-in" style={{ background: "var(--fv-surface-2)" }}>
+            <span className="text-sm font-medium flex-1 min-w-0 truncate" style={{ color: "var(--fv-text)" }}>
+              {checked.size} {t("selected")}
+            </span>
+            <button
+              onClick={toggleAll}
+              title={t("selectAll")}
+              aria-label={t("selectAll")}
+              className="fv-icon-btn grid place-items-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"
+              style={{ color: "var(--fv-violet)" }}
+            >▣</button>
+            <Button variant="danger" onClick={() => void deleteChecked()} className="!px-3 !py-1.5 text-sm">🗑 {t("delete")}</Button>
+            <button
+              onClick={clearChecked}
+              title={t("clearSel")}
+              aria-label={t("clearSel")}
+              className="fv-icon-btn grid place-items-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"
+              style={{ color: "var(--fv-muted)" }}
+            >✕</button>
+          </div>
+        )}
         <div className="flex-1 overflow-auto px-2 pb-2">
           {visible.length === 0 ? (
             <div className="h-full grid place-items-center text-center px-6" style={{ color: "var(--fv-faint)" }}>
               <div>
-                <div className="text-3xl mb-2">{filter.kind === "crypto" ? "🪙" : "🗝️"}</div>
-                <div className="font-medium" style={{ color: "var(--fv-muted)" }}>{filter.kind === "crypto" ? t("noSeeds") : t("noEntries")}</div>
-                <div className="text-sm mt-1">{filter.kind === "crypto" ? t("noSeedsHint") : t("noEntriesHint")}</div>
+                <div className="text-3xl mb-2">{filter.kind === "crypto" ? "🪙" : filter.kind === "totp" ? "⏱️" : "🗝️"}</div>
+                <div className="font-medium" style={{ color: "var(--fv-muted)" }}>{filter.kind === "crypto" ? t("noSeeds") : filter.kind === "totp" ? t("noTotp") : t("noEntries")}</div>
+                <div className="text-sm mt-1">{filter.kind === "crypto" ? t("noSeedsHint") : filter.kind === "totp" ? t("noTotpHint") : t("noEntriesHint")}</div>
+                {filter.kind === "totp" && (
+                  <div className="mt-4">
+                    <Button onClick={() => setShowGa(true)}>📷 {t("gaImport")}</Button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
             <ul className="space-y-1">
               {visible.map((e) => {
                 const active = e.id === selectedId;
+                const isChecked = checked.has(e.id);
+                const anyChecked = checked.size > 0;
                 const isSeed = e.kind === "seed";
+                const isTotp = e.kind === "totp";
+                const prefix = isSeed ? "🪙 " : isTotp ? "⏱ " : "";
+                const subtitle = isSeed
+                  ? `🪙 ${e.word_count} ${t("wordCount").toLowerCase()}`
+                  : isTotp
+                    ? `⏱️ ${e.username || "2FA"}`
+                    : `${e.username || e.url}${e.has_totp ? " · TOTP" : ""}`;
+                const hl = active || isChecked;
                 return (
                   <li key={e.id}>
-                    <button
-                      onClick={() => setSelectedId(e.id)}
-                      className="fv-row w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left"
-                      style={{ background: active ? "var(--fv-hover)" : "transparent" }}
-                      onMouseEnter={(ev) => { if (!active) ev.currentTarget.style.background = "var(--fv-hover)"; }}
-                      onMouseLeave={(ev) => { if (!active) ev.currentTarget.style.background = "transparent"; }}
+                    <div
+                      className="fv-row group flex items-center gap-2 pl-2 pr-2.5 py-2 rounded-xl"
+                      style={{ background: hl ? "var(--fv-hover)" : "transparent" }}
+                      onMouseEnter={(ev) => { if (!hl) ev.currentTarget.style.background = "var(--fv-hover)"; }}
+                      onMouseLeave={(ev) => { if (!hl) ev.currentTarget.style.background = "transparent"; }}
                     >
-                      <Avatar label={(isSeed ? "🪙 " : "") + (e.title || e.url || e.username)} size={34} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium text-sm" style={{ color: "var(--fv-text)" }}>
-                          {e.title || e.url || e.username || t("empty")}
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleCheck(e.id)}
+                        className={`shrink-0 w-4 h-4 cursor-pointer transition-opacity ${isChecked || anyChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                        style={{ accentColor: "#7c3aed" }}
+                        aria-label="select"
+                      />
+                      <button onClick={() => setSelectedId(e.id)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                        <Avatar label={prefix + (e.title || e.url || e.username)} size={34} />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium text-sm" style={{ color: "var(--fv-text)" }}>
+                            {e.title || e.url || e.username || t("empty")}
+                          </div>
+                          <div className="truncate text-xs" style={{ color: "var(--fv-muted)" }}>{subtitle}</div>
                         </div>
-                        <div className="truncate text-xs" style={{ color: "var(--fv-muted)" }}>
-                          {isSeed ? `🪙 ${e.word_count} ${t("wordCount").toLowerCase()}` : `${e.username || e.url}${e.has_totp ? " · TOTP" : ""}`}
-                        </div>
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -184,14 +274,21 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
               key={`${selected.id}:${reloadKey}`}
               entry={selected}
               onEdit={() => setEditing({ id: selected.id, kind: "seed" })}
-              onDelete={async () => { if (!confirm(t("confirmDelete"))) return; await api.deleteEntry(selected.id); setSelectedId(null); reload(); }}
+              onDelete={() => requestDelete([selected.id], t("confirmDelete"))}
+            />
+          ) : selected.kind === "totp" ? (
+            <TotpDetail
+              key={`${selected.id}:${reloadKey}`}
+              entry={selected}
+              onEdit={() => setEditing({ id: selected.id, kind: "totp" })}
+              onDelete={() => requestDelete([selected.id], t("confirmDelete"))}
             />
           ) : (
             <EntryDetail
               key={`${selected.id}:${reloadKey}`}
               entry={selected}
               onEdit={() => setEditing({ id: selected.id, kind: "login" })}
-              onDelete={async () => { if (!confirm(t("confirmDelete"))) return; await api.deleteEntry(selected.id); setSelectedId(null); reload(); }}
+              onDelete={() => requestDelete([selected.id], t("confirmDelete"))}
             />
           )
         ) : (
@@ -213,6 +310,12 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
             entry={editingEntry}
             onClose={() => { if (editing.id) setSelectedId(editing.id); setEditing(null); reload(); }}
           />
+        ) : editing.kind === "totp" ? (
+          <TotpEditor
+            id={editing.id}
+            entry={editingEntry}
+            onClose={() => { if (editing.id) setSelectedId(editing.id); setEditing(null); reload(); }}
+          />
         ) : (
           <EntryEditor
             id={editing.id}
@@ -224,9 +327,18 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
       <Modal open={showImport} onClose={() => setShowImport(false)} maxWidth="44rem">
         <ImportWizard onDone={() => { setShowImport(false); reload(); }} />
       </Modal>
+      <Modal open={showGa} onClose={() => setShowGa(false)} maxWidth="34rem">
+        <GaImport onDone={() => { setShowGa(false); reload(); }} />
+      </Modal>
       <Modal open={showSettings} onClose={() => setShowSettings(false)} maxWidth="30rem">
         <SettingsScreen onDone={() => setShowSettings(false)} />
       </Modal>
+      <ConfirmDialog
+        open={!!confirmDlg}
+        message={confirmDlg?.message ?? ""}
+        onConfirm={() => confirmDlg?.onConfirm()}
+        onCancel={() => setConfirmDlg(null)}
+      />
     </div>
   );
 }

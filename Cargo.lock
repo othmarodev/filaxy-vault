@@ -706,6 +706,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-encoding"
+version = "2.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
+
+[[package]]
 name = "dbus"
 version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1005,6 +1011,7 @@ name = "filaxy-vault"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "data-encoding",
  "filaxy-vault-core",
  "keyring",
  "serde",
@@ -1024,10 +1031,12 @@ name = "filaxy-vault-core"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "base64 0.22.1",
  "calamine",
  "chacha20poly1305",
  "ciborium",
  "csv",
+ "data-encoding",
  "getrandom 0.2.17",
  "hex",
  "hkdf",

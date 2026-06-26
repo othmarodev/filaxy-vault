@@ -476,3 +476,111 @@ pub fn get_seed_secret(state: State<'_, Mutex<AppState>>, id: String) -> Result<
         notes: e.notes.clone(),
     })
 }
+
+// ── Authenticator / 2FA (TOTP) entries ───────────────────────────────────────
+
+fn normalize_secret(secret: &str) -> String {
+    secret.replace(' ', "").to_uppercase()
+}
+
+#[tauri::command]
+pub fn add_totp_entry(
+    state: State<'_, Mutex<AppState>>,
+    issuer: String,
+    account: String,
+    secret: String,
+    tags: Vec<String>,
+) -> Result<String, String> {
+    let secret = normalize_secret(&secret);
+    // reject invalid base32 secrets up front
+    totp::current_code(&secret).map_err(|_| "invalid 2FA key".to_string())?;
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let now = now_secs() as i64;
+    let id = {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        let mut e = Entry::new_totp(issuer, account, secret, now);
+        e.tags = tags;
+        let id = e.id.to_string();
+        u.vault.add(e);
+        id
+    };
+    persist(&app)?;
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn update_totp_entry(
+    state: State<'_, Mutex<AppState>>,
+    id: String,
+    issuer: String,
+    account: String,
+    secret: String,
+    tags: Vec<String>,
+) -> Result<(), String> {
+    let secret = normalize_secret(&secret);
+    totp::current_code(&secret).map_err(|_| "invalid 2FA key".to_string())?;
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let now = now_secs() as i64;
+    let uuid = parse_id(&id)?;
+    {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        let e = u.vault.get_mut(uuid).ok_or("not found")?;
+        e.title = issuer;
+        e.username = account;
+        e.totp_secret = Some(secret);
+        e.tags = tags;
+        e.updated_at = now;
+    }
+    persist(&app)
+}
+
+/// Returns the raw 2FA secret (for backup / editing). Sensitive.
+#[tauri::command]
+pub fn get_totp_secret(state: State<'_, Mutex<AppState>>, id: String) -> Result<String, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let uuid = parse_id(&id)?;
+    let e = u.vault.get(uuid).ok_or("not found")?;
+    e.totp_secret.clone().ok_or_else(|| "no 2FA key".to_string())
+}
+
+/// Generates the current 6-digit code for a stored 2FA entry.
+#[tauri::command]
+pub fn totp_code_for(state: State<'_, Mutex<AppState>>, id: String) -> Result<String, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let u = app.session.unlocked.as_ref().ok_or("locked")?;
+    let uuid = parse_id(&id)?;
+    let e = u.vault.get(uuid).ok_or("not found")?;
+    let secret = e.totp_secret.as_ref().ok_or("no 2FA key")?;
+    let algo = e.totp_algo.clone().unwrap_or_else(|| "SHA1".to_string());
+    let digits = e.totp_digits.unwrap_or(6) as usize;
+    let period = e.totp_period.unwrap_or(30) as u64;
+    totp::current_code_with(secret, &algo, digits, period).map_err(|_| "invalid 2FA key".to_string())
+}
+
+/// Import all accounts from a Google Authenticator export URI
+/// (otpauth-migration://...). Creates one TOTP entry per account. Returns count.
+#[tauri::command]
+pub fn import_google_authenticator(state: State<'_, Mutex<AppState>>, uri: String) -> Result<usize, String> {
+    use filaxy_vault_core::import::google_auth;
+    let accounts = google_auth::parse_migration_uri(&uri).map_err(|_| "not a valid Google Authenticator export".to_string())?;
+    let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let now = now_secs() as i64;
+    let mut count = 0usize;
+    {
+        let u = app.session.unlocked.as_mut().ok_or("locked")?;
+        for a in accounts {
+            if a.secret_base32.is_empty() { continue; }
+            // validate with the account's OWN algorithm/digits; skip silently if invalid
+            if totp::current_code_with(&a.secret_base32, &a.algorithm, a.digits as usize, 30).is_err() { continue; }
+            let mut e = Entry::new_totp(a.issuer, a.account, a.secret_base32, now);
+            e.totp_algo = Some(a.algorithm);
+            e.totp_digits = Some(a.digits);
+            e.totp_period = Some(30);
+            u.vault.add(e);
+            count += 1;
+        }
+    }
+    persist(&app)?;
+    Ok(count)
+}

@@ -70,3 +70,12 @@ export const updateSeedEntry = (
 ) => invoke<void>("update_seed_entry", { id, title, network, words, derivationPath, passphrase, notes, tags });
 
 export const getSeedSecret = (id: string) => invoke<SeedSecret>("get_seed_secret", { id });
+
+// ── Authenticator / 2FA (TOTP) entries ──
+export const addTotpEntry = (issuer: string, account: string, secret: string, tags: string[]) =>
+  invoke<string>("add_totp_entry", { issuer, account, secret, tags });
+export const updateTotpEntry = (id: string, issuer: string, account: string, secret: string, tags: string[]) =>
+  invoke<void>("update_totp_entry", { id, issuer, account, secret, tags });
+export const getTotpSecret = (id: string) => invoke<string>("get_totp_secret", { id });
+export const totpCodeFor = (id: string) => invoke<string>("totp_code_for", { id });
+export const importGoogleAuthenticator = (uri: string) => invoke<number>("import_google_authenticator", { uri });

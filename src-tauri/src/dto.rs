@@ -13,6 +13,9 @@ pub struct EntrySummary {
     pub kind: String,
     /// For seed entries: number of words (so the list can show a hint). 0 otherwise.
     pub word_count: usize,
+    /// TOTP display params (default 6 / 30) so the UI formats the code and the ring correctly.
+    pub totp_digits: u32,
+    pub totp_period: u32,
 }
 
 pub fn from_entry(e: &Entry) -> EntrySummary {
@@ -23,8 +26,14 @@ pub fn from_entry(e: &Entry) -> EntrySummary {
         url: e.url.clone(),
         tags: e.tags.clone(),
         has_totp: e.totp_secret.is_some(),
-        kind: match e.kind { EntryKind::Login => "login".into(), EntryKind::Seed => "seed".into() },
+        kind: match e.kind {
+            EntryKind::Login => "login".into(),
+            EntryKind::Seed => "seed".into(),
+            EntryKind::Totp => "totp".into(),
+        },
         word_count: e.seed.as_ref().map(|s| s.words.len()).unwrap_or(0),
+        totp_digits: e.totp_digits.unwrap_or(6),
+        totp_period: e.totp_period.unwrap_or(30),
     }
 }
 

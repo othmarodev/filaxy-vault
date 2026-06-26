@@ -15,6 +15,9 @@ pub enum EntryKind {
     #[default]
     Login,
     Seed,
+    /// Standalone 2FA / authenticator account (TOTP). Secret lives in `totp_secret`,
+    /// `title` is the issuer, `username` is the account.
+    Totp,
 }
 
 /// Crypto-wallet recovery phrase payload (BIP39). The words are secrets and are
@@ -46,6 +49,15 @@ pub struct Entry {
     pub kind: EntryKind,
     #[serde(default)]
     pub seed: Option<SeedData>,
+    /// TOTP parameters (for 2FA entries / entries with a TOTP secret).
+    /// `None` means the default ("SHA1" / 6 digits / 30s). Kept optional +
+    /// `#[serde(default)]` for backward compatibility with older vaults.
+    #[serde(default)]
+    pub totp_algo: Option<String>,
+    #[serde(default)]
+    pub totp_digits: Option<u32>,
+    #[serde(default)]
+    pub totp_period: Option<u32>,
 }
 
 impl Entry {
@@ -64,6 +76,9 @@ impl Entry {
             history: Vec::new(),
             kind: EntryKind::Login,
             seed: None,
+            totp_algo: None,
+            totp_digits: None,
+            totp_period: None,
         }
     }
 
@@ -72,6 +87,17 @@ impl Entry {
         let mut e = Entry::new(title);
         e.kind = EntryKind::Seed;
         e.seed = Some(seed);
+        e.created_at = now;
+        e.updated_at = now;
+        e
+    }
+
+    /// Create a new standalone 2FA / authenticator (TOTP) entry.
+    pub fn new_totp(issuer: impl Into<String>, account: impl Into<String>, secret: impl Into<String>, now: i64) -> Self {
+        let mut e = Entry::new(issuer);
+        e.kind = EntryKind::Totp;
+        e.username = account.into();
+        e.totp_secret = Some(secret.into());
         e.created_at = now;
         e.updated_at = now;
         e
@@ -123,6 +149,15 @@ mod tests {
     fn default_entry_is_login_kind() {
         assert_eq!(Entry::new("x").kind, EntryKind::Login);
         assert!(Entry::new("x").seed.is_none());
+    }
+
+    #[test]
+    fn new_totp_entry_holds_secret() {
+        let e = Entry::new_totp("GitHub", "me@x.com", "JBSWY3DPEHPK3PXP", 7);
+        assert_eq!(e.kind, EntryKind::Totp);
+        assert_eq!(e.title, "GitHub");
+        assert_eq!(e.username, "me@x.com");
+        assert_eq!(e.totp_secret.as_deref(), Some("JBSWY3DPEHPK3PXP"));
     }
 
     #[test]

@@ -5,8 +5,10 @@ export interface EntrySummary {
   url: string;
   tags: string[];
   has_totp: boolean;
-  kind: "login" | "seed";
+  kind: "login" | "seed" | "totp";
   word_count: number;
+  totp_digits: number;
+  totp_period: number;
 }
 export interface EntrySecret {
   password: string;

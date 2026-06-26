@@ -43,7 +43,12 @@ pub fn run() {
             commands::totp_now,
             commands::add_seed_entry,
             commands::update_seed_entry,
-            commands::get_seed_secret
+            commands::get_seed_secret,
+            commands::add_totp_entry,
+            commands::update_totp_entry,
+            commands::get_totp_secret,
+            commands::totp_code_for,
+            commands::import_google_authenticator
         ])
         .run(tauri::generate_context!())
         .expect("error while running Filaxy Vault");

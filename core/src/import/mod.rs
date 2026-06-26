@@ -1,6 +1,7 @@
 pub mod csv;
 pub mod xlsx;
 pub mod presets;
+pub mod google_auth;
 
 use crate::vault::model::Entry;
 
