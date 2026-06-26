@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { EntrySummary, EntrySecret, SeedSecret, Settings, ImportPreview, Mapping, GenOpts } from "./types";
+import type { EntrySummary, EntrySecret, SeedSecret, Settings, ImportPreview, Mapping, GenOpts, CustomField } from "./types";
 
 export const vaultExists = (path: string) => invoke<boolean>("vault_exists", { path });
 
@@ -21,12 +21,14 @@ export const getEntrySecret = (id: string) => invoke<EntrySecret>("get_entry_sec
 export const addEntry = (
   title: string, username: string, password: string, url: string, notes: string,
   tags: string[], totpSecret: string | undefined, group: string,
-) => invoke<string>("add_entry", { title, username, password, url, notes, tags, totpSecret: totpSecret ?? null, group });
+  customFields: CustomField[], expiresAt: number | null, icon: string,
+) => invoke<string>("add_entry", { title, username, password, url, notes, tags, totpSecret: totpSecret ?? null, group, customFields, expiresAt, icon });
 
 export const updateEntry = (
   id: string, title: string, username: string, password: string, url: string, notes: string,
   tags: string[], totpSecret: string | undefined, group: string,
-) => invoke<void>("update_entry", { id, title, username, password, url, notes, tags, totpSecret: totpSecret ?? null, group });
+  customFields: CustomField[], expiresAt: number | null, icon: string,
+) => invoke<void>("update_entry", { id, title, username, password, url, notes, tags, totpSecret: totpSecret ?? null, group, customFields, expiresAt, icon });
 
 export const deleteEntry = (id: string) => invoke<void>("delete_entry", { id });
 export const restoreEntry = (id: string) => invoke<void>("restore_entry", { id });
@@ -65,21 +67,21 @@ export const totpNow = (secret: string) => invoke<string>("totp_now", { secret }
 // ── Seed-phrase (crypto wallet) entries ──
 export const addSeedEntry = (
   title: string, network: string, words: string[], derivationPath: string,
-  passphrase: string, notes: string, tags: string[],
-) => invoke<string>("add_seed_entry", { title, network, words, derivationPath, passphrase, notes, tags });
+  passphrase: string, notes: string, tags: string[], icon: string,
+) => invoke<string>("add_seed_entry", { title, network, words, derivationPath, passphrase, notes, tags, icon });
 
 export const updateSeedEntry = (
   id: string, title: string, network: string, words: string[], derivationPath: string,
-  passphrase: string, notes: string, tags: string[],
-) => invoke<void>("update_seed_entry", { id, title, network, words, derivationPath, passphrase, notes, tags });
+  passphrase: string, notes: string, tags: string[], icon: string,
+) => invoke<void>("update_seed_entry", { id, title, network, words, derivationPath, passphrase, notes, tags, icon });
 
 export const getSeedSecret = (id: string) => invoke<SeedSecret>("get_seed_secret", { id });
 
 // ── Authenticator / 2FA (TOTP) entries ──
-export const addTotpEntry = (issuer: string, account: string, secret: string, tags: string[]) =>
-  invoke<string>("add_totp_entry", { issuer, account, secret, tags });
-export const updateTotpEntry = (id: string, issuer: string, account: string, secret: string, tags: string[]) =>
-  invoke<void>("update_totp_entry", { id, issuer, account, secret, tags });
+export const addTotpEntry = (issuer: string, account: string, secret: string, tags: string[], icon: string) =>
+  invoke<string>("add_totp_entry", { issuer, account, secret, tags, icon });
+export const updateTotpEntry = (id: string, issuer: string, account: string, secret: string, tags: string[], icon: string) =>
+  invoke<void>("update_totp_entry", { id, issuer, account, secret, tags, icon });
 export const getTotpSecret = (id: string) => invoke<string>("get_totp_secret", { id });
 export const totpCodeFor = (id: string) => invoke<string>("totp_code_for", { id });
 export const importGoogleAuthenticator = (uri: string) => invoke<number>("import_google_authenticator", { uri });

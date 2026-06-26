@@ -1,6 +1,7 @@
 import { useEffect, useState, type ClipboardEvent } from "react";
 import type { EntrySummary } from "../types";
 import { Button } from "../components/Button";
+import { IconPicker } from "../components/IconPicker";
 import { useT } from "../i18n/I18nContext";
 import * as api from "../api";
 
@@ -31,6 +32,7 @@ export function SeedEditor({
   const [passphrase, setPassphrase] = useState("");
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState(entry?.tags.join(", ") ?? "");
+  const [icon, setIcon] = useState(entry?.icon ?? "");
 
   useEffect(() => {
     if (!id) return;
@@ -68,8 +70,8 @@ export function SeedEditor({
   const save = async () => {
     const cleaned = words.map((w) => w.trim()).filter(Boolean);
     const tagArr = tags.split(",").map((s) => s.trim()).filter(Boolean);
-    if (id) await api.updateSeedEntry(id, title, network, cleaned, derivationPath, passphrase, notes, tagArr);
-    else await api.addSeedEntry(title, network, cleaned, derivationPath, passphrase, notes, tagArr);
+    if (id) await api.updateSeedEntry(id, title, network, cleaned, derivationPath, passphrase, notes, tagArr, icon);
+    else await api.addSeedEntry(title, network, cleaned, derivationPath, passphrase, notes, tagArr, icon);
     onClose();
   };
 
@@ -103,6 +105,11 @@ export function SeedEditor({
             <input list="fv-networks" value={network} onChange={(e) => setNetwork(e.target.value)} className={inputCls} style={inputStyle} />
             <datalist id="fv-networks">{NETWORKS.map((n) => <option key={n} value={n} />)}</datalist>
           </div>
+        </div>
+
+        <div>
+          <label className={labelCls} style={labelStyle}>{t("iconField")}</label>
+          <IconPicker value={icon} onChange={setIcon} />
         </div>
 
         <div>

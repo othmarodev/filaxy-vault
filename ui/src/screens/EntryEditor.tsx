@@ -1,10 +1,22 @@
 import { useEffect, useState } from "react";
-import type { EntrySummary } from "../types";
+import type { EntrySummary, CustomField } from "../types";
 import { Button } from "../components/Button";
 import { PasswordField } from "../components/PasswordField";
 import { GeneratorPanel } from "./GeneratorPanel";
+import { IconPicker } from "../components/IconPicker";
 import { useT } from "../i18n/I18nContext";
 import * as api from "../api";
+
+function toDateInput(unix: number | null): string {
+  if (!unix) return "";
+  const d = new Date(unix * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function fromDateInput(s: string): number | null {
+  if (!s) return null;
+  const ms = new Date(`${s}T23:59:59`).getTime();
+  return Number.isNaN(ms) ? null : Math.floor(ms / 1000);
+}
 
 export function EntryEditor({
   id,
@@ -24,20 +36,29 @@ export function EntryEditor({
   const [tags, setTags] = useState(entry?.tags.join(", ") ?? "");
   const [group, setGroup] = useState(entry?.group ?? "");
   const [totpSecret, setTotpSecret] = useState("");
+  const [icon, setIcon] = useState(entry?.icon ?? "");
+  const [expiresOn, setExpiresOn] = useState(toDateInput(entry?.expires_at ?? null));
+  const [fields, setFields] = useState<CustomField[]>([]);
   const [showGen, setShowGen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    // secret fields (password/notes) are fetched on demand; summary fields come via props
-    api.getEntrySecret(id).then((s) => { setPassword(s.password); setNotes(s.notes); }).catch(() => {});
+    api.getEntrySecret(id).then((s) => { setPassword(s.password); setNotes(s.notes); setFields(s.custom_fields); }).catch(() => {});
   }, [id]);
+
+  const setField = (i: number, patch: Partial<CustomField>) =>
+    setFields((f) => f.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+  const addField = () => setFields((f) => [...f, { label: "", value: "", protected: false }]);
+  const removeField = (i: number) => setFields((f) => f.filter((_, idx) => idx !== i));
 
   const save = async () => {
     const tagArr = tags.split(",").map((s) => s.trim()).filter(Boolean);
     const totp = totpSecret.trim() || undefined;
     const grp = group.trim();
-    if (id) await api.updateEntry(id, title, username, password, url, notes, tagArr, totp, grp);
-    else await api.addEntry(title, username, password, url, notes, tagArr, totp, grp);
+    const cf = fields.filter((f) => f.label.trim() || f.value.trim());
+    const exp = fromDateInput(expiresOn);
+    if (id) await api.updateEntry(id, title, username, password, url, notes, tagArr, totp, grp, cf, exp, icon);
+    else await api.addEntry(title, username, password, url, notes, tagArr, totp, grp, cf, exp, icon);
     onClose();
   };
 
@@ -59,6 +80,13 @@ export function EntryEditor({
           <label className={labelCls} style={labelStyle}>{t("titleField")}</label>
           <input autoFocus placeholder="Gmail, GitHub…" value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} style={inputStyle} />
         </div>
+
+        {/* icon picker */}
+        <div>
+          <label className={labelCls} style={labelStyle}>{t("iconField")}</label>
+          <IconPicker value={icon} onChange={setIcon} />
+        </div>
+
         <div>
           <label className={labelCls} style={labelStyle}>{t("username")}</label>
           <input value={username} onChange={(e) => setUsername(e.target.value)} className={inputCls} style={inputStyle} />
@@ -75,9 +103,15 @@ export function EntryEditor({
           <label className={labelCls} style={labelStyle}>{t("url")}</label>
           <input value={url} onChange={(e) => setUrl(e.target.value)} className={inputCls} style={inputStyle} />
         </div>
-        <div>
-          <label className={labelCls} style={labelStyle}>TOTP (base32)</label>
-          <input placeholder={t("empty")} value={totpSecret} onChange={(e) => setTotpSecret(e.target.value)} className={`${inputCls} font-mono`} style={inputStyle} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls} style={labelStyle}>TOTP (base32)</label>
+            <input placeholder={t("empty")} value={totpSecret} onChange={(e) => setTotpSecret(e.target.value)} className={`${inputCls} font-mono`} style={inputStyle} />
+          </div>
+          <div>
+            <label className={labelCls} style={labelStyle}>{t("expiration")}</label>
+            <input type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} className={inputCls} style={inputStyle} />
+          </div>
         </div>
         <div>
           <label className={labelCls} style={labelStyle}>{t("notes")}</label>
@@ -91,6 +125,24 @@ export function EntryEditor({
           <div>
             <label className={labelCls} style={labelStyle}>{t("folder")}</label>
             <input placeholder="Work, Banking…" value={group} onChange={(e) => setGroup(e.target.value)} className={inputCls} style={inputStyle} />
+          </div>
+        </div>
+
+        {/* custom fields */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className={labelCls + " mb-0"} style={labelStyle}>{t("customFields")}</label>
+            <button onClick={addField} className="fv-btn text-xs font-medium rounded-md px-2 py-1" style={{ color: "var(--fv-violet)" }}>+ {t("addField")}</button>
+          </div>
+          <div className="space-y-2">
+            {fields.map((f, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <input placeholder={t("fieldLabel")} value={f.label} onChange={(e) => setField(i, { label: e.target.value })} className={`${inputCls} flex-1`} style={inputStyle} />
+                <input placeholder={t("fieldValue")} type={f.protected ? "password" : "text"} value={f.value} onChange={(e) => setField(i, { value: e.target.value })} className={`${inputCls} flex-1`} style={inputStyle} />
+                <button onClick={() => setField(i, { protected: !f.protected })} title="protect" className="fv-icon-btn grid place-items-center w-8 h-8 rounded-lg shrink-0" style={{ color: f.protected ? "var(--fv-violet)" : "var(--fv-faint)" }}>{f.protected ? "🔒" : "🔓"}</button>
+                <button onClick={() => removeField(i)} className="fv-icon-btn grid place-items-center w-8 h-8 rounded-lg shrink-0 hover:bg-red-500/10" style={{ color: "#ef4444" }}>✕</button>
+              </div>
+            ))}
           </div>
         </div>
       </div>

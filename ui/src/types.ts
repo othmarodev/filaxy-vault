@@ -12,11 +12,19 @@ export interface EntrySummary {
   favorite: boolean;
   trashed: boolean;
   group: string;
+  icon: string;
+  expires_at: number | null;
+}
+export interface CustomField {
+  label: string;
+  value: string;
+  protected: boolean;
 }
 export interface EntrySecret {
   password: string;
   notes: string;
   totp_code: string | null;
+  custom_fields: CustomField[];
 }
 export interface SeedSecret {
   words: string[];

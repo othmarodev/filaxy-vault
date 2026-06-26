@@ -136,7 +136,25 @@ pub fn get_entry_secret(state: State<'_, Mutex<AppState>>, id: String) -> Result
     let uuid = parse_id(&id)?;
     let e = u.vault.get(uuid).ok_or("not found")?;
     let totp_code = e.totp_secret.as_ref().and_then(|s| totp::current_code(s).ok());
-    Ok(dto::EntrySecret { password: e.password.clone(), notes: e.notes.clone(), totp_code })
+    let custom_fields = e.custom_fields.iter().map(|c| dto::CustomFieldDto {
+        label: c.label.clone(), value: c.value.clone(), protected: c.protected,
+    }).collect();
+    Ok(dto::EntrySecret { password: e.password.clone(), notes: e.notes.clone(), totp_code, custom_fields })
+}
+
+/// Input shape for a custom field coming from the UI.
+#[derive(serde::Deserialize)]
+pub struct CustomFieldArg {
+    pub label: String,
+    pub value: String,
+    pub protected: bool,
+}
+
+fn to_custom_fields(args: Vec<CustomFieldArg>) -> Vec<filaxy_vault_core::vault::model::CustomField> {
+    args.into_iter()
+        .filter(|a| !a.label.trim().is_empty() || !a.value.trim().is_empty())
+        .map(|a| filaxy_vault_core::vault::model::CustomField { label: a.label, value: a.value, protected: a.protected })
+        .collect()
 }
 
 #[tauri::command]
@@ -145,6 +163,7 @@ pub fn add_entry(
     state: State<'_, Mutex<AppState>>,
     title: String, username: String, password: String, url: String, notes: String,
     tags: Vec<String>, totp_secret: Option<String>, group: String,
+    custom_fields: Vec<CustomFieldArg>, expires_at: Option<i64>, icon: String,
 ) -> Result<String, String> {
     let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
     let now = now_secs() as i64;
@@ -153,6 +172,7 @@ pub fn add_entry(
         let mut e = Entry::new(title);
         e.username = username; e.url = url; e.notes = notes; e.tags = tags;
         e.totp_secret = totp_secret; e.group = group; e.created_at = now;
+        e.custom_fields = to_custom_fields(custom_fields); e.expires_at = expires_at; e.icon = icon;
         e.set_password(password, now);
         let id = e.id.to_string();
         u.vault.add(e);
@@ -168,6 +188,7 @@ pub fn update_entry(
     state: State<'_, Mutex<AppState>>,
     id: String, title: String, username: String, password: String, url: String, notes: String,
     tags: Vec<String>, totp_secret: Option<String>, group: String,
+    custom_fields: Vec<CustomFieldArg>, expires_at: Option<i64>, icon: String,
 ) -> Result<(), String> {
     let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
     let now = now_secs() as i64;
@@ -177,6 +198,7 @@ pub fn update_entry(
         let e = u.vault.get_mut(uuid).ok_or("not found")?;
         e.title = title; e.username = username; e.url = url; e.notes = notes;
         e.tags = tags; e.totp_secret = totp_secret; e.group = group;
+        e.custom_fields = to_custom_fields(custom_fields); e.expires_at = expires_at; e.icon = icon;
         if e.password != password {
             e.set_password(password, now);
         }
@@ -470,6 +492,7 @@ pub fn add_seed_entry(
     passphrase: String,
     notes: String,
     tags: Vec<String>,
+    icon: String,
 ) -> Result<String, String> {
     let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
     let now = now_secs() as i64;
@@ -479,6 +502,7 @@ pub fn add_seed_entry(
         let mut e = Entry::new_seed(title, seed, now);
         e.notes = notes;
         e.tags = tags;
+        e.icon = icon;
         let id = e.id.to_string();
         u.vault.add(e);
         id
@@ -499,6 +523,7 @@ pub fn update_seed_entry(
     passphrase: String,
     notes: String,
     tags: Vec<String>,
+    icon: String,
 ) -> Result<(), String> {
     let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
     let now = now_secs() as i64;
@@ -509,6 +534,7 @@ pub fn update_seed_entry(
         e.title = title;
         e.notes = notes;
         e.tags = tags;
+        e.icon = icon;
         e.seed = Some(SeedData { words: clean_words(words), network, derivation_path, passphrase });
         e.updated_at = now;
     }
@@ -544,6 +570,7 @@ pub fn add_totp_entry(
     account: String,
     secret: String,
     tags: Vec<String>,
+    icon: String,
 ) -> Result<String, String> {
     let secret = normalize_secret(&secret);
     // reject invalid base32 secrets up front
@@ -554,6 +581,7 @@ pub fn add_totp_entry(
         let u = app.session.unlocked.as_mut().ok_or("locked")?;
         let mut e = Entry::new_totp(issuer, account, secret, now);
         e.tags = tags;
+        e.icon = icon;
         let id = e.id.to_string();
         u.vault.add(e);
         id
@@ -570,6 +598,7 @@ pub fn update_totp_entry(
     account: String,
     secret: String,
     tags: Vec<String>,
+    icon: String,
 ) -> Result<(), String> {
     let secret = normalize_secret(&secret);
     totp::current_code(&secret).map_err(|_| "invalid 2FA key".to_string())?;
@@ -583,6 +612,7 @@ pub fn update_totp_entry(
         e.username = account;
         e.totp_secret = Some(secret);
         e.tags = tags;
+        e.icon = icon;
         e.updated_at = now;
     }
     persist(&app)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EntrySummary } from "../types";
 import { Button } from "../components/Button";
+import { IconPicker } from "../components/IconPicker";
 import { useT } from "../i18n/I18nContext";
 import { decodeQrFromFile } from "../lib/qr";
 import * as api from "../api";
@@ -38,6 +39,7 @@ export function TotpEditor({
   const [account, setAccount] = useState(entry?.username ?? "");
   const [secret, setSecret] = useState("");
   const [tags, setTags] = useState(entry?.tags.join(", ") ?? "");
+  const [icon, setIcon] = useState(entry?.icon ?? "");
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -75,8 +77,8 @@ export function TotpEditor({
     setErr("");
     const tagArr = tags.split(",").map((s) => s.trim()).filter(Boolean);
     try {
-      if (id) await api.updateTotpEntry(id, issuer, account, secret, tagArr);
-      else await api.addTotpEntry(issuer, account, secret, tagArr);
+      if (id) await api.updateTotpEntry(id, issuer, account, secret, tagArr, icon);
+      else await api.addTotpEntry(issuer, account, secret, tagArr, icon);
       onClose();
     } catch {
       setErr(t("invalidKey"));
@@ -105,6 +107,10 @@ export function TotpEditor({
             <label className={labelCls} style={labelStyle}>{t("accountField")}</label>
             <input placeholder="me@email.com" value={account} onChange={(e) => setAccount(e.target.value)} className={inputCls} style={inputStyle} />
           </div>
+        </div>
+        <div>
+          <label className={labelCls} style={labelStyle}>{t("iconField")}</label>
+          <IconPicker value={icon} onChange={setIcon} />
         </div>
         <div>
           <div className="flex items-center justify-between mb-1">

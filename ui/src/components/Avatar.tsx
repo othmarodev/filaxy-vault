@@ -8,7 +8,30 @@ function hue(str: string): number {
   return h;
 }
 
-export function Avatar({ label, size = 36 }: { label: string; size?: number }) {
+export function Avatar({ label, size = 36, icon }: { label: string; size?: number; icon?: string }) {
+  if (icon) {
+    // custom uploaded image (data: URL) vs emoji glyph
+    if (icon.startsWith("data:") || icon.startsWith("http")) {
+      return (
+        <img
+          src={icon}
+          alt=""
+          aria-hidden="true"
+          className="rounded-xl shrink-0 object-cover"
+          style={{ width: size, height: size }}
+        />
+      );
+    }
+    return (
+      <span
+        aria-hidden="true"
+        className="grid place-items-center rounded-xl shrink-0"
+        style={{ width: size, height: size, fontSize: size * 0.58, background: "var(--fv-surface-2)" }}
+      >
+        {icon}
+      </span>
+    );
+  }
   const initial = (label.trim()[0] || "?").toUpperCase();
   const h = hue(label || "?");
   const bg = `linear-gradient(135deg, hsl(${h} 75% 55%), hsl(${(h + 40) % 360} 80% 50%))`;

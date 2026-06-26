@@ -72,7 +72,7 @@ export function EntryDetail({
     <div className="fv-fade-in h-full flex flex-col">
       {/* header */}
       <div className="flex items-center gap-3 p-5 border-b" style={{ borderColor: "var(--fv-border)" }}>
-        <Avatar label={entry.title || entry.url || entry.username} size={48} />
+        <Avatar label={entry.title || entry.url || entry.username} size={48} icon={entry.icon || undefined} />
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold truncate" style={{ color: "var(--fv-text)" }}>
             {entry.title || entry.url || entry.username || t("empty")}
@@ -106,6 +106,27 @@ export function EntryDetail({
           <Field label="TOTP" value={secret.totp_code} mono onCopy={() => copyText(secret.totp_code!)} />
         )}
         <Field label={t("url")} value={entry.url} onCopy={entry.url ? () => copyText(entry.url) : undefined} />
+        {/* custom fields */}
+        {secret?.custom_fields.map((f, i) => (
+          <Field
+            key={i}
+            label={f.label || t("fieldValue")}
+            value={f.protected ? (show ? f.value : "••••••••") : f.value}
+            mono={f.protected}
+            onCopy={f.value ? () => copyText(f.value) : undefined}
+          />
+        ))}
+        {entry.expires_at && (
+          <div className="flex items-center justify-between gap-3 py-3 border-b" style={{ borderColor: "var(--fv-border)" }}>
+            <div>
+              <div className="text-xs uppercase tracking-wide mb-0.5" style={{ color: "var(--fv-faint)" }}>{t("expiration")}</div>
+              <div style={{ color: "var(--fv-text)" }}>{new Date(entry.expires_at * 1000).toLocaleDateString()}</div>
+            </div>
+            {entry.expires_at * 1000 < Date.now() && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444" }}>{t("expired")}</span>
+            )}
+          </div>
+        )}
         <Field label={t("notes")} value={secret?.notes || ""} />
         {entry.tags.length > 0 && (
           <div className="py-3">

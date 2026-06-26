@@ -33,7 +33,7 @@ export function SeedDetail({
     <div className="fv-fade-in h-full flex flex-col">
       {/* header */}
       <div className="flex items-center gap-3 p-5 border-b" style={{ borderColor: "var(--fv-border)" }}>
-        <Avatar label={`🪙 ${entry.title}`} size={48} />
+        <Avatar label={`🪙 ${entry.title}`} size={48} icon={entry.icon || undefined} />
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold truncate" style={{ color: "var(--fv-text)" }}>
             {entry.title || t("seedPhrase")}

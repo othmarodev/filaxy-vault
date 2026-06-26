@@ -66,7 +66,7 @@ export function TotpDetail({
   return (
     <div className="fv-fade-in h-full flex flex-col">
       <div className="flex items-center gap-3 p-5 border-b" style={{ borderColor: "var(--fv-border)" }}>
-        <Avatar label={`⏱ ${entry.title}`} size={48} />
+        <Avatar label={`⏱ ${entry.title}`} size={48} icon={entry.icon || undefined} />
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold truncate" style={{ color: "var(--fv-text)" }}>{entry.title || "2FA"}</h2>
           <div className="text-sm truncate" style={{ color: "var(--fv-muted)" }}>{entry.username || "—"}</div>

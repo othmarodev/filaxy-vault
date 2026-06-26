@@ -314,7 +314,7 @@ export function VaultWorkspace({ onLock }: { onLock: () => void }) {
                         aria-label="select"
                       />
                       <button onClick={() => setSelectedId(e.id)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                        <Avatar label={prefix + (e.title || e.url || e.username)} size={34} />
+                        <Avatar label={prefix + (e.title || e.url || e.username)} size={34} icon={e.icon || undefined} />
                         <div className="min-w-0 flex-1">
                           <div className="truncate font-medium text-sm" style={{ color: "var(--fv-text)" }}>
                             {e.title || e.url || e.username || t("empty")}

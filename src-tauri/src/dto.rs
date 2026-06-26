@@ -20,6 +20,16 @@ pub struct EntrySummary {
     pub favorite: bool,
     pub trashed: bool,
     pub group: String,
+    /// Emoji icon ("" = default avatar) and optional expiry (unix seconds).
+    pub icon: String,
+    pub expires_at: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub struct CustomFieldDto {
+    pub label: String,
+    pub value: String,
+    pub protected: bool,
 }
 
 pub fn from_entry(e: &Entry) -> EntrySummary {
@@ -41,6 +51,8 @@ pub fn from_entry(e: &Entry) -> EntrySummary {
         favorite: e.favorite,
         trashed: e.trashed,
         group: e.group.clone(),
+        icon: e.icon.clone(),
+        expires_at: e.expires_at,
     }
 }
 
@@ -49,6 +61,7 @@ pub struct EntrySecret {
     pub password: String,
     pub notes: String,
     pub totp_code: Option<String>,
+    pub custom_fields: Vec<CustomFieldDto>,
 }
 
 /// Sensitive payload for a seed-phrase entry. Returned only on explicit request.

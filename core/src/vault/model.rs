@@ -20,6 +20,15 @@ pub enum EntryKind {
     Totp,
 }
 
+/// A user-defined extra field on an entry (KeePassXC "Advanced" attributes).
+/// `protected` marks it as sensitive (masked in the UI until revealed).
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug, Default)]
+pub struct CustomField {
+    pub label: String,
+    pub value: String,
+    pub protected: bool,
+}
+
 /// Crypto-wallet recovery phrase payload (BIP39). The words are secrets and are
 /// encrypted with the rest of the vault.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug, Default)]
@@ -65,6 +74,13 @@ pub struct Entry {
     pub trashed: bool,
     #[serde(default)]
     pub group: String,
+    /// Extra user-defined fields, optional expiry (unix seconds), and an emoji icon.
+    #[serde(default)]
+    pub custom_fields: Vec<CustomField>,
+    #[serde(default)]
+    pub expires_at: Option<i64>,
+    #[serde(default)]
+    pub icon: String,
 }
 
 impl Entry {
@@ -89,6 +105,9 @@ impl Entry {
             favorite: false,
             trashed: false,
             group: String::new(),
+            custom_fields: Vec::new(),
+            expires_at: None,
+            icon: String::new(),
         }
     }
 
