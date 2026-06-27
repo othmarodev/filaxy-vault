@@ -98,8 +98,8 @@ pub fn is_locked(state: State<'_, Mutex<AppState>>) -> bool {
 // Task 7: entry CRUD + search + generator + TOTP
 // ---------------------------------------------------------------------------
 
-use filaxy_vault_core::generator::{self, GenOptions};
-use filaxy_vault_core::vault::model::Entry;
+use filaxy_vault_core::generator::{self, GenOptions, PassphraseOptions};
+use filaxy_vault_core::vault::model::{Entry, EntryKind};
 use uuid::Uuid;
 use crate::dto;
 use crate::totp;
@@ -164,12 +164,19 @@ pub fn add_entry(
     title: String, username: String, password: String, url: String, notes: String,
     tags: Vec<String>, totp_secret: Option<String>, group: String,
     custom_fields: Vec<CustomFieldArg>, expires_at: Option<i64>, icon: String,
+    kind: Option<String>,
 ) -> Result<String, String> {
     let mut app = state.lock().map_err(|_| "state poisoned".to_string())?;
     let now = now_secs() as i64;
     let id = {
         let u = app.session.unlocked.as_mut().ok_or("locked")?;
         let mut e = Entry::new(title);
+        e.kind = match kind.as_deref() {
+            Some("note") => EntryKind::Note,
+            Some("card") => EntryKind::Card,
+            Some("identity") => EntryKind::Identity,
+            _ => EntryKind::Login,
+        };
         e.username = username; e.url = url; e.notes = notes; e.tags = tags;
         e.totp_secret = totp_secret; e.group = group; e.created_at = now;
         e.custom_fields = to_custom_fields(custom_fields); e.expires_at = expires_at; e.icon = icon;
@@ -334,6 +341,7 @@ pub fn health_report(state: State<'_, Mutex<AppState>>) -> Result<dto::HealthRep
         reused: map(r.reused),
         old: map(r.old),
         expired: map(r.expired),
+        duplicates: map(r.duplicates),
         total: r.total,
         score: r.score,
     })
@@ -353,6 +361,22 @@ pub fn password_entropy(
 ) -> f64 {
     let opts = GenOptions { length, lower, upper, digits, symbols, exclude_ambiguous };
     generator::entropy_bits(&opts)
+}
+
+#[tauri::command]
+pub fn generate_passphrase(
+    words: usize, separator: String, capitalize: bool, include_number: bool,
+) -> Result<String, String> {
+    let opts = PassphraseOptions { words, separator, capitalize, include_number };
+    generator::generate_passphrase(&opts).map_err(|_| "invalid options".to_string())
+}
+
+#[tauri::command]
+pub fn passphrase_entropy(
+    words: usize, separator: String, capitalize: bool, include_number: bool,
+) -> f64 {
+    let opts = PassphraseOptions { words, separator, capitalize, include_number };
+    generator::passphrase_entropy_bits(&opts)
 }
 
 #[tauri::command]
@@ -470,7 +494,7 @@ fn read_table(file_path: &str) -> Result<(Vec<String>, Vec<Vec<String>>), String
 #[tauri::command]
 pub fn import_preview(file_path: String) -> Result<ImportPreview, String> {
     let (headers, rows) = read_table(&file_path)?;
-    let detected_preset = presets::detect(&headers).map(|p| format!("{p:?}"));
+    let detected_preset = presets::detect(&headers).map(|p| presets::display_name(p).to_string());
     Ok(ImportPreview { headers, rows, detected_preset })
 }
 

@@ -18,6 +18,12 @@ pub enum EntryKind {
     /// Standalone 2FA / authenticator account (TOTP). Secret lives in `totp_secret`,
     /// `title` is the issuer, `username` is the account.
     Totp,
+    /// Free-form secure note (content lives in `notes`).
+    Note,
+    /// Payment card — details held in `custom_fields` (number, expiry, CVV…).
+    Card,
+    /// Identity document — details held in `custom_fields` (name, DOB, passport…).
+    Identity,
 }
 
 /// A user-defined extra field on an entry (KeePassXC "Advanced" attributes).

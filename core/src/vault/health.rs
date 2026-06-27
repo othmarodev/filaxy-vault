@@ -18,6 +18,10 @@ pub struct HealthReport {
     pub reused: Vec<HealthItem>,
     pub old: Vec<HealthItem>,
     pub expired: Vec<HealthItem>,
+    /// Entries that look like accidental duplicates of another entry
+    /// (same title + username + url + password). Informational — clutter, not
+    /// a security flaw, so it does NOT affect the score.
+    pub duplicates: Vec<HealthItem>,
     /// Number of entries with a password that were considered.
     pub total: usize,
     /// 0–100 overall score (100 = no weak/reused/old password issues).
@@ -52,6 +56,21 @@ pub fn analyze(entries: &[Entry], now: i64) -> HealthReport {
         }
     }
 
+    // count identical (title|username|url|password) tuples to detect duplicate entries
+    let dup_key = |e: &Entry| {
+        format!(
+            "{}\u{1}{}\u{1}{}\u{1}{}",
+            e.title.trim().to_lowercase(),
+            e.username.trim().to_lowercase(),
+            e.url.trim().to_lowercase(),
+            e.password
+        )
+    };
+    let mut dup_counts: HashMap<String, u32> = HashMap::new();
+    for e in &live {
+        *dup_counts.entry(dup_key(e)).or_insert(0) += 1;
+    }
+
     let mk = |e: &Entry| HealthItem { id: e.id.to_string(), title: e.title.clone() };
     let mut report = HealthReport::default();
     let mut pw_total = 0usize;
@@ -78,6 +97,9 @@ pub fn analyze(entries: &[Entry], now: i64) -> HealthReport {
             if exp < now {
                 report.expired.push(mk(e)); // informational; not in score denominator
             }
+        }
+        if dup_counts.get(&dup_key(e)).copied().unwrap_or(0) > 1 {
+            report.duplicates.push(mk(e)); // informational; not in score denominator
         }
     }
 
@@ -141,6 +163,20 @@ mod tests {
         let r = analyze(&[t], now);
         assert_eq!(r.total, 0);
         assert!(r.weak.is_empty());
+    }
+
+    #[test]
+    fn flags_duplicate_entries() {
+        let now = 1_000_000_000;
+        let mut a = entry("GitHub", "Str0ng&Uniqu3-Passphrase-9xQ", now);
+        a.username = "me@x.com".into();
+        let mut b = a.clone();
+        b.id = uuid::Uuid::new_v4();
+        // a unique, non-duplicate entry should NOT be flagged
+        let c = entry("Other", "An0ther-Uniqu3-Passphrase-7zP-Long", now);
+        let r = analyze(&[a, b, c], now);
+        assert_eq!(r.duplicates.len(), 2);
+        assert!(!r.duplicates.iter().any(|i| i.title == "Other"));
     }
 
     #[test]

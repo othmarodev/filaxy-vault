@@ -52,7 +52,7 @@ export function HealthView({ onOpenEntry }: { onOpenEntry: (id: string) => void 
 
   const score = report?.score ?? 0;
   const color = scoreColor(score);
-  const issues = report ? report.weak.length + report.reused.length + report.old.length + report.expired.length : 0;
+  const issues = report ? report.weak.length + report.reused.length + report.old.length + report.expired.length + report.duplicates.length : 0;
 
   return (
     <div className="fv-fade-in h-full overflow-auto px-6 py-6" style={{ background: "transparent" }}>
@@ -95,6 +95,7 @@ export function HealthView({ onOpenEntry }: { onOpenEntry: (id: string) => void 
             <Category label={t("reusedPasswords")} icon="♻️" color="#f59e0b" items={report?.reused ?? []} onOpen={onOpenEntry} />
             <Category label={t("oldPasswords")} icon="🕰️" color="#0ea5e9" items={report?.old ?? []} onOpen={onOpenEntry} />
             <Category label={t("expiredItems")} icon="⌛" color="#ef4444" items={report?.expired ?? []} onOpen={onOpenEntry} />
+            <Category label={t("duplicateEntries")} icon="🧬" color="#a855f7" items={report?.duplicates ?? []} onOpen={onOpenEntry} />
           </div>
         )}
       </div>

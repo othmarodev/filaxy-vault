@@ -36,6 +36,8 @@ pub fn run() {
             commands::search_entries,
             commands::generate_password,
             commands::password_entropy,
+            commands::generate_passphrase,
+            commands::passphrase_entropy,
             commands::import_preview,
             commands::import_commit,
             commands::export_backup,

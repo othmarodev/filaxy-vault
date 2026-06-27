@@ -81,32 +81,39 @@ export function EntryDetail({
           {entry.url && <div className="text-sm truncate" style={{ color: "var(--fv-muted)" }}>{entry.url}</div>}
         </div>
         <div className="flex items-center gap-2">
+          {entry.kind !== "login" && secret?.custom_fields.some((f) => f.protected) && (
+            <Button variant="ghost" onClick={() => setShow((s) => !s)}>{show ? t("hide") : t("reveal")}</Button>
+          )}
           <Button variant="ghost" onClick={onEdit}>{t("edit")}</Button>
         </div>
       </div>
 
       {/* body */}
       <div className="flex-1 overflow-auto px-5">
-        <Field label={t("username")} value={entry.username} onCopy={entry.username ? () => copyText(entry.username) : undefined} />
-        <Field
-          label={t("password")}
-          value={secret ? (show ? secret.password : "••••••••••••") : "••••••••"}
-          mono
-          onCopy={copyPw}
-          trailing={
-            <button
-              onClick={() => setShow((s) => !s)}
-              className="rounded-md px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10"
-              style={{ color: "var(--fv-muted)" }}
-            >
-              {show ? t("hide") : t("reveal")}
-            </button>
-          }
-        />
-        {secret?.totp_code && (
-          <Field label="TOTP" value={secret.totp_code} mono onCopy={() => copyText(secret.totp_code!)} />
+        {entry.kind === "login" && (
+          <>
+            <Field label={t("username")} value={entry.username} onCopy={entry.username ? () => copyText(entry.username) : undefined} />
+            <Field
+              label={t("password")}
+              value={secret ? (show ? secret.password : "••••••••••••") : "••••••••"}
+              mono
+              onCopy={copyPw}
+              trailing={
+                <button
+                  onClick={() => setShow((s) => !s)}
+                  className="rounded-md px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10"
+                  style={{ color: "var(--fv-muted)" }}
+                >
+                  {show ? t("hide") : t("reveal")}
+                </button>
+              }
+            />
+            {secret?.totp_code && (
+              <Field label="TOTP" value={secret.totp_code} mono onCopy={() => copyText(secret.totp_code!)} />
+            )}
+            <Field label={t("url")} value={entry.url} onCopy={entry.url ? () => copyText(entry.url) : undefined} />
+          </>
         )}
-        <Field label={t("url")} value={entry.url} onCopy={entry.url ? () => copyText(entry.url) : undefined} />
         {/* custom fields */}
         {secret?.custom_fields.map((f, i) => (
           <Field

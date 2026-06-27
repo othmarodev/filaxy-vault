@@ -44,6 +44,7 @@ pub struct HealthReport {
     pub reused: Vec<HealthItem>,
     pub old: Vec<HealthItem>,
     pub expired: Vec<HealthItem>,
+    pub duplicates: Vec<HealthItem>,
     pub total: usize,
     pub score: u8,
 }
@@ -67,6 +68,9 @@ pub fn from_entry(e: &Entry) -> EntrySummary {
             EntryKind::Login => "login".into(),
             EntryKind::Seed => "seed".into(),
             EntryKind::Totp => "totp".into(),
+            EntryKind::Note => "note".into(),
+            EntryKind::Card => "card".into(),
+            EntryKind::Identity => "identity".into(),
         },
         word_count: e.seed.as_ref().map(|s| s.words.len()).unwrap_or(0),
         totp_digits: e.totp_digits.unwrap_or(6),

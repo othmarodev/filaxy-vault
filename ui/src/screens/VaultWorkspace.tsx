@@ -14,12 +14,13 @@ import { TotpEditor } from "./TotpEditor";
 import { ImportWizard } from "./ImportWizard";
 import { GaImport } from "./GaImport";
 import { HealthView } from "./HealthView";
+import { StatsView } from "./StatsView";
 import { SettingsScreen } from "./SettingsScreen";
 import { onFvAction } from "../lib/actions";
 import * as api from "../api";
 
-type Filter = { kind: "all" | "favorites" | "crypto" | "totp" | "health" | "trash" | "tag" | "group"; tag?: string; group?: string };
-type Editing = { id: string | null; kind: "login" | "seed" | "totp" };
+type Filter = { kind: "all" | "favorites" | "crypto" | "totp" | "notes" | "cards" | "identities" | "stats" | "health" | "trash" | "tag" | "group"; tag?: string; group?: string };
+type Editing = { id: string | null; kind: "login" | "seed" | "totp" | "note" | "card" | "identity" };
 
 function NavItem({
   label, icon, active, soon, onClick,
@@ -93,6 +94,7 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
   const trashCount = useMemo(() => entries.filter((e) => e.trashed).length, [entries]);
   const inTrash = filter.kind === "trash";
   const inHealth = filter.kind === "health";
+  const inStats = filter.kind === "stats";
 
   const visible = useMemo(() => {
     if (filter.kind === "trash") return entries.filter((e) => e.trashed);
@@ -100,6 +102,9 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
     if (filter.kind === "favorites") return live.filter((e) => e.favorite);
     if (filter.kind === "crypto") return live.filter((e) => e.kind === "seed");
     if (filter.kind === "totp") return live.filter((e) => e.kind === "totp");
+    if (filter.kind === "notes") return live.filter((e) => e.kind === "note");
+    if (filter.kind === "cards") return live.filter((e) => e.kind === "card");
+    if (filter.kind === "identities") return live.filter((e) => e.kind === "identity");
     if (filter.kind === "tag" && filter.tag) return live.filter((e) => e.tags.includes(filter.tag!));
     if (filter.kind === "group" && filter.group) return live.filter((e) => e.group === filter.group);
     return live;
@@ -110,7 +115,7 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
 
   const inputStyle = { background: "var(--fv-surface-2)", borderColor: "var(--fv-border)" } as const;
 
-  const startNew = (kind: "login" | "seed" | "totp") => { setNewMenu(false); setEditing({ id: null, kind }); };
+  const startNew = (kind: Editing["kind"]) => { setNewMenu(false); setEditing({ id: null, kind }); };
 
   // ── multi-select / bulk delete ──
   const toggleCheck = (id: string) => setChecked((prev) => {
@@ -192,6 +197,18 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                   ⏱️ {t("newTotp")}
                 </button>
+                <button className="fv-row w-full text-left px-3 py-2.5 text-sm flex items-center gap-2" style={{ color: "var(--fv-text)" }} onClick={() => startNew("note")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  📝 {t("itemNote")}
+                </button>
+                <button className="fv-row w-full text-left px-3 py-2.5 text-sm flex items-center gap-2" style={{ color: "var(--fv-text)" }} onClick={() => startNew("card")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  💳 {t("itemCard")}
+                </button>
+                <button className="fv-row w-full text-left px-3 py-2.5 text-sm flex items-center gap-2" style={{ color: "var(--fv-text)" }} onClick={() => startNew("identity")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  🪪 {t("itemIdentity")}
+                </button>
                 <div className="border-t" style={{ borderColor: "var(--fv-border)" }} />
                 <button className="fv-row w-full text-left px-3 py-2.5 text-sm flex items-center gap-2" style={{ color: "var(--fv-text)" }} onClick={() => { setNewMenu(false); setShowGa(true); }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--fv-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
@@ -202,10 +219,14 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
           )}
         </div>
         <nav className="px-2 space-y-0.5">
+          <NavItem label={t("stats")} icon="📊" active={filter.kind === "stats"} onClick={() => setFilter({ kind: "stats" })} />
           <NavItem label={t("allItems")} icon="◆" active={filter.kind === "all"} onClick={() => setFilter({ kind: "all" })} />
           <NavItem label={t("favorites")} icon="★" active={filter.kind === "favorites"} onClick={() => setFilter({ kind: "favorites" })} />
           <NavItem label={t("crypto")} icon="🪙" active={filter.kind === "crypto"} onClick={() => setFilter({ kind: "crypto" })} />
           <NavItem label={t("authenticator")} icon="⏱️" active={filter.kind === "totp"} onClick={() => setFilter({ kind: "totp" })} />
+          <NavItem label={t("itemNote")} icon="📝" active={filter.kind === "notes"} onClick={() => setFilter({ kind: "notes" })} />
+          <NavItem label={t("itemCard")} icon="💳" active={filter.kind === "cards"} onClick={() => setFilter({ kind: "cards" })} />
+          <NavItem label={t("itemIdentity")} icon="🪪" active={filter.kind === "identities"} onClick={() => setFilter({ kind: "identities" })} />
           <NavItem label={t("health")} icon="🩺" active={filter.kind === "health"} onClick={() => setFilter({ kind: "health" })} />
           <NavItem label={`${t("trash")}${trashCount ? ` (${trashCount})` : ""}`} icon="🗑" active={filter.kind === "trash"} onClick={() => setFilter({ kind: "trash" })} />
         </nav>
@@ -237,7 +258,11 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
         </div>
       </aside>
 
-      {inHealth ? (
+      {inStats ? (
+        <section className="min-h-0" style={{ gridColumn: "2 / 4", background: "transparent" }}>
+          <StatsView entries={entries} onPickType={(k) => setFilter({ kind: k as Filter["kind"] })} />
+        </section>
+      ) : inHealth ? (
         <section className="min-h-0" style={{ gridColumn: "2 / 4", background: "transparent" }}>
           <HealthView onOpenEntry={(id) => { setFilter({ kind: "all" }); setSelectedId(id); }} />
         </section>
@@ -292,9 +317,9 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
           {visible.length === 0 ? (
             <div className="h-full grid place-items-center text-center px-6" style={{ color: "var(--fv-faint)" }}>
               <div>
-                <div className="text-3xl mb-2">{filter.kind === "crypto" ? "🪙" : filter.kind === "totp" ? "⏱️" : filter.kind === "trash" ? "🗑" : filter.kind === "favorites" ? "★" : "🗝️"}</div>
-                <div className="font-medium" style={{ color: "var(--fv-muted)" }}>{filter.kind === "crypto" ? t("noSeeds") : filter.kind === "totp" ? t("noTotp") : filter.kind === "trash" ? t("trashEmpty") : t("noEntries")}</div>
-                <div className="text-sm mt-1">{filter.kind === "crypto" ? t("noSeedsHint") : filter.kind === "totp" ? t("noTotpHint") : filter.kind === "trash" ? "" : t("noEntriesHint")}</div>
+                <div className="text-3xl mb-2">{filter.kind === "crypto" ? "🪙" : filter.kind === "totp" ? "⏱️" : filter.kind === "notes" ? "📝" : filter.kind === "cards" ? "💳" : filter.kind === "identities" ? "🪪" : filter.kind === "trash" ? "🗑" : filter.kind === "favorites" ? "★" : "🗝️"}</div>
+                <div className="font-medium" style={{ color: "var(--fv-muted)" }}>{filter.kind === "crypto" ? t("noSeeds") : filter.kind === "totp" ? t("noTotp") : filter.kind === "notes" ? t("noNotes") : filter.kind === "cards" ? t("noCards") : filter.kind === "identities" ? t("noIdentities") : filter.kind === "trash" ? t("trashEmpty") : t("noEntries")}</div>
+                <div className="text-sm mt-1">{filter.kind === "crypto" ? t("noSeedsHint") : filter.kind === "totp" ? t("noTotpHint") : filter.kind === "trash" || filter.kind === "notes" || filter.kind === "cards" || filter.kind === "identities" ? "" : t("noEntriesHint")}</div>
                 {filter.kind === "totp" && (
                   <div className="mt-4">
                     <Button onClick={() => setShowGa(true)}>📷 {t("gaImport")}</Button>
@@ -310,12 +335,18 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
                 const anyChecked = checked.size > 0;
                 const isSeed = e.kind === "seed";
                 const isTotp = e.kind === "totp";
-                const prefix = isSeed ? "🪙 " : isTotp ? "⏱ " : "";
+                const prefix = isSeed ? "🪙 " : isTotp ? "⏱ " : e.kind === "note" ? "📝 " : e.kind === "card" ? "💳 " : e.kind === "identity" ? "🪪 " : "";
                 const subtitle = isSeed
                   ? `🪙 ${e.word_count} ${t("wordCount").toLowerCase()}`
                   : isTotp
                     ? `⏱️ ${e.username || "2FA"}`
-                    : `${e.username || e.url}${e.has_totp ? " · TOTP" : ""}`;
+                    : e.kind === "note"
+                      ? `📝 ${t("itemNote")}`
+                      : e.kind === "card"
+                        ? `💳 ${t("itemCard")}`
+                        : e.kind === "identity"
+                          ? `🪪 ${t("itemIdentity")}`
+                          : `${e.username || e.url}${e.has_totp ? " · TOTP" : ""}`;
                 const hl = active || isChecked;
                 return (
                   <li key={e.id}>
@@ -388,7 +419,7 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
             <EntryDetail
               key={`${selected.id}:${reloadKey}`}
               entry={selected}
-              onEdit={() => setEditing({ id: selected.id, kind: "login" })}
+              onEdit={() => setEditing({ id: selected.id, kind: selected.kind as "login" | "note" | "card" | "identity" })}
               onDelete={() => deleteFromDetail(selected.id)}
             />
           )
@@ -423,6 +454,7 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
           <EntryEditor
             id={editing.id}
             entry={editingEntry}
+            kind={editing.kind as "login" | "note" | "card" | "identity"}
             onClose={() => { if (editing.id) setSelectedId(editing.id); setEditing(null); reload(); }}
           />
         ))}

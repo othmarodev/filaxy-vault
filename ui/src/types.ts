@@ -5,7 +5,7 @@ export interface EntrySummary {
   url: string;
   tags: string[];
   has_totp: boolean;
-  kind: "login" | "seed" | "totp";
+  kind: "login" | "seed" | "totp" | "note" | "card" | "identity";
   word_count: number;
   totp_digits: number;
   totp_period: number;
@@ -29,6 +29,7 @@ export interface HealthReport {
   reused: HealthItem[];
   old: HealthItem[];
   expired: HealthItem[];
+  duplicates: HealthItem[];
   total: number;
   score: number;
 }
@@ -73,4 +74,11 @@ export interface GenOpts {
   digits: boolean;
   symbols: boolean;
   exclude_ambiguous: boolean;
+}
+
+export interface PassphraseOpts {
+  words: number;
+  separator: string;
+  capitalize: boolean;
+  include_number: boolean;
 }

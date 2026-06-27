@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { EntrySummary, EntrySecret, SeedSecret, Settings, ImportPreview, Mapping, GenOpts, CustomField, AttachmentInfo, HealthReport } from "./types";
+import type { EntrySummary, EntrySecret, SeedSecret, Settings, ImportPreview, Mapping, GenOpts, PassphraseOpts, CustomField, AttachmentInfo, HealthReport } from "./types";
 
 export const vaultExists = (path: string) => invoke<boolean>("vault_exists", { path });
 
@@ -23,7 +23,8 @@ export const addEntry = (
   title: string, username: string, password: string, url: string, notes: string,
   tags: string[], totpSecret: string | undefined, group: string,
   customFields: CustomField[], expiresAt: number | null, icon: string,
-) => invoke<string>("add_entry", { title, username, password, url, notes, tags, totpSecret: totpSecret ?? null, group, customFields, expiresAt, icon });
+  kind?: "login" | "note" | "card" | "identity",
+) => invoke<string>("add_entry", { title, username, password, url, notes, tags, totpSecret: totpSecret ?? null, group, customFields, expiresAt, icon, kind: kind ?? null });
 
 export const updateEntry = (
   id: string, title: string, username: string, password: string, url: string, notes: string,
@@ -45,6 +46,16 @@ export const generatePassword = (o: GenOpts) =>
 export const passwordEntropy = (o: GenOpts) =>
   invoke<number>("password_entropy", {
     length: o.length, lower: o.lower, upper: o.upper, digits: o.digits, symbols: o.symbols, excludeAmbiguous: o.exclude_ambiguous,
+  });
+
+export const generatePassphrase = (o: PassphraseOpts) =>
+  invoke<string>("generate_passphrase", {
+    words: o.words, separator: o.separator, capitalize: o.capitalize, includeNumber: o.include_number,
+  });
+
+export const passphraseEntropy = (o: PassphraseOpts) =>
+  invoke<number>("passphrase_entropy", {
+    words: o.words, separator: o.separator, capitalize: o.capitalize, includeNumber: o.include_number,
   });
 
 export const importPreview = (filePath: string) => invoke<ImportPreview>("import_preview", { filePath });
