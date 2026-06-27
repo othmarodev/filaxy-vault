@@ -103,6 +103,46 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 .fv-row:hover { transform: translateX(3px); }
 .fv-row:active { transform: translateX(1px) scale(.995); }
 
+/* horizontal nav links (top bar + footer): animated gradient underline + lift */
+.fv-nav-link { position: relative; transition: color .2s ease, transform .2s cubic-bezier(.2,.8,.2,1); }
+.fv-nav-link::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, #7c3aed, #0ea5e9);
+  transform: scaleX(0); transform-origin: left; transition: transform .25s cubic-bezier(.2,.8,.2,1);
+}
+.fv-nav-link:hover { color: var(--fv-text) !important; transform: translateY(-1px); }
+.fv-nav-link:hover::after { transform: scaleX(1); }
+.fv-nav-link.active { color: var(--fv-text) !important; }
+.fv-nav-link.active::after { transform: scaleX(1); }
+
+/* Lock button — rotating gradient ring around a glass center (distinct from the solid + New) */
+.fv-lockbtn-ring {
+  position: relative; isolation: isolate; border-radius: 11px; padding: 2px; overflow: hidden;
+  transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease;
+}
+.fv-lockbtn-ring:hover { transform: translateY(-1px); box-shadow: 0 12px 30px -8px rgba(14,165,233,.65); }
+.fv-lockbtn-ring:active { transform: translateY(0) scale(.96); }
+.fv-lockbtn-ring .ring-spin {
+  position: absolute; inset: -65%; z-index: 0;
+  background: conic-gradient(from 0deg, #7c3aed, #0ea5e9, #38bdf8, #a855f7, #7c3aed);
+  animation: fv-spin 4.5s linear infinite;
+}
+.fv-lockbtn-ring:hover .ring-spin { animation-duration: 1.3s; }
+.fv-lockbtn-ring .ring-inner {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; gap: .4rem;
+  border-radius: 9px; padding: .4rem .9rem .4rem .72rem;
+  background: var(--fv-surface); color: var(--fv-text);
+  font-weight: 600; font-size: .875rem; line-height: 1; white-space: nowrap;
+}
+
+/* padlock snaps shut on hover */
+.fv-lock-ico { transition: transform .2s ease; transform-origin: center; }
+.fv-lockbtn:hover .fv-lock-ico { animation: fv-lock-snap .45s cubic-bezier(.34,1.56,.64,1); }
+.fv-lock-shackle { transform-box: fill-box; transform-origin: 50% 100%; transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
+.fv-lockbtn:hover .fv-lock-shackle { transform: translateY(-2px); }
+@keyframes fv-spin { to { transform: rotate(1turn); } }
+@keyframes fv-lock-snap { 0% { transform: translateY(-1px) rotate(-7deg); } 55% { transform: translateY(0) rotate(5deg) scale(1.08); } 100% { transform: none; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .fv-ease, .fv-btn, .fv-icon-btn, .fv-tag, .fv-row, .fv-fade-in { transition: none !important; animation: none !important; }
+  .fv-ease, .fv-btn, .fv-icon-btn, .fv-tag, .fv-row, .fv-fade-in, .fv-nav-link, .fv-nav-link::after, .fv-lockbtn-ring .ring-spin, .fv-lock-ico { transition: none !important; animation: none !important; }
 }

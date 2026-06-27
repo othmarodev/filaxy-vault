@@ -7,12 +7,12 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<M
     let tr = |en: &str, sp: &str| -> String { if es { sp.to_string() } else { en.to_string() } };
 
     let about = AboutMetadata {
-        name: Some("Filaxy Vault".into()),
+        name: Some("Filaxy™ Vault".into()),
         version: Some(env!("CARGO_PKG_VERSION").into()),
         ..Default::default()
     };
 
-    let app_menu = SubmenuBuilder::new(app, "Filaxy Vault")
+    let app_menu = SubmenuBuilder::new(app, "Filaxy™ Vault")
         .about(Some(about))
         .separator()
         .hide()
@@ -44,7 +44,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<M
         .text("menu_manual", tr("User manual", "Manual del usuario"))
         .text("menu_shortcuts", tr("Keyboard shortcuts", "Atajos de teclado"))
         .separator()
-        .text("menu_about", tr("About Filaxy Vault", "Acerca de Filaxy Vault"))
+        .text("menu_about", tr("About Filaxy™ Vault", "Acerca de Filaxy™ Vault"))
         .build()?;
 
     MenuBuilder::new(app).items(&[&app_menu, &edit, &vault, &help]).build()

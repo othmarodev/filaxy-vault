@@ -15,6 +15,7 @@ import { ImportWizard } from "./ImportWizard";
 import { GaImport } from "./GaImport";
 import { HealthView } from "./HealthView";
 import { SettingsScreen } from "./SettingsScreen";
+import { onFvAction } from "../lib/actions";
 import * as api from "../api";
 
 type Filter = { kind: "all" | "favorites" | "crypto" | "totp" | "health" | "trash" | "tag" | "group"; tag?: string; group?: string };
@@ -68,14 +69,13 @@ export function VaultWorkspace({ onLock, onOpenHelp }: { onLock: () => void; onO
 
   const reload = () => setReloadKey((k) => k + 1);
 
-  // native-menu events for vault actions
+  // vault actions from the menu bus (native menu OR in-window menu)
   useEffect(() => {
-    const un = api.onMenu((id) => {
+    return onFvAction((id) => {
       if (id === "menu_settings") setShowSettings(true);
       else if (id === "menu_import") setShowImport(true);
       else if (id === "menu_new") setEditing({ id: null, kind: "login" });
     });
-    return () => { un.then((f) => f()); };
   }, []);
 
   const tags = useMemo(() => {

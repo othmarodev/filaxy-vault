@@ -1,6 +1,6 @@
 import type { Dict } from "./en";
 export const es: Dict = {
-  appName: "Filaxy Vault",
+  appName: "Filaxy™ Vault",
   unlock: "Desbloquear",
   lock: "Bloquear",
   masterPassword: "Contraseña maestra",
@@ -125,4 +125,10 @@ export const es: Dict = {
   confirmDeleteMany: "¿Eliminar las entradas seleccionadas? No se puede deshacer.",
   scanQr: "Escanear QR",
   qrNotRecognized: "No se pudo leer un QR de 2FA ahí. Si es un export de Google Authenticator, usá \"Importar de Google Authenticator\".",
+  menuVault: "Bóveda",
+  menuNewEntry: "Nueva entrada",
+  menuImport: "Importar",
+  menuManual: "Manual de usuario",
+  menuShortcuts: "Atajos de teclado",
+  menuAbout: "Acerca de Filaxy™ Vault",
 };

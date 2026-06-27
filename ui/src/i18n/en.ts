@@ -1,5 +1,5 @@
 export const en = {
-  appName: "Filaxy Vault",
+  appName: "Filaxy™ Vault",
   unlock: "Unlock",
   lock: "Lock",
   masterPassword: "Master password",
@@ -124,6 +124,12 @@ export const en = {
   confirmDeleteMany: "Delete the selected entries? This can't be undone.",
   scanQr: "Scan QR image",
   qrNotRecognized: "Couldn't read a 2FA QR there. For a Google Authenticator export, use \"Import from Google Authenticator\".",
+  menuVault: "Vault",
+  menuNewEntry: "New entry",
+  menuImport: "Import",
+  menuManual: "User manual",
+  menuShortcuts: "Keyboard shortcuts",
+  menuAbout: "About Filaxy™ Vault",
 } as const;
 // Keys come from `en`; values widened to `string` so locale dicts (es.ts) can
 // hold translated strings without each one being typed as the English literal.
