@@ -1,5 +1,6 @@
 import { useLang, useT } from "../i18n/I18nContext";
 import { fvAction } from "../lib/actions";
+import * as api from "../api";
 
 const VERSION = "0.1.0";
 const REPO = "https://github.com/othmarodev/filaxy-vault";
@@ -44,15 +45,14 @@ export function Footer() {
               <span className="mr-1.5">{l.emoji}</span>{l.label}
             </button>
           ))}
-          <a
-            href={REPO}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            onClick={() => api.openUrl(REPO).catch(() => {})}
             className="fv-nav-link px-2.5 py-1.5 rounded-md text-sm font-medium"
             style={{ color: "var(--fv-muted)" }}
           >
             <span className="mr-1.5">🐙</span>GitHub
-          </a>
+          </button>
         </nav>
       </div>
       <div className="mt-2 text-center text-xs" style={{ color: "var(--fv-muted)" }}>

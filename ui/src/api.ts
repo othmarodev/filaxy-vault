@@ -99,3 +99,6 @@ export const healthReport = () => invoke<HealthReport>("health_report");
 // ── Native menu ──
 export const setMenuLanguage = (lang: string) => invoke<void>("set_menu_language", { lang });
 export const onMenu = (cb: (id: string) => void) => listen<string>("fv-menu", (e) => cb(e.payload));
+
+// ── Open an external URL in the system browser (via tauri-plugin-opener) ──
+export const openUrl = (url: string) => invoke<void>("plugin:opener|open_url", { url });

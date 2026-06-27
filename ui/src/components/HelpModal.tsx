@@ -1,6 +1,7 @@
 import { Modal } from "./Modal";
 import { Logo } from "./Logo";
 import { useLang } from "../i18n/I18nContext";
+import * as api from "../api";
 
 export type HelpSection = "manual" | "shortcuts" | "about";
 
@@ -620,7 +621,7 @@ export function HelpModal({ open, section, onClose, onSection }: {
                   : "A local-first, open-source password manager. Your encrypted vault lives on your device — no cloud."}
               </p>
               <div className="mt-5 flex flex-col items-center gap-1.5 text-sm">
-                <a href={REPO} style={{ color: "var(--fv-violet)" }}>github.com/othmarodev/filaxy-vault</a>
+                <button type="button" onClick={() => api.openUrl(REPO).catch(() => {})} className="fv-nav-link" style={{ color: "var(--fv-violet)" }}>github.com/othmarodev/filaxy-vault</button>
                 <span style={{ color: "var(--fv-faint)" }}>MIT · Filaxy™ Labs · Costa Rica 🇨🇷</span>
               </div>
             </div>

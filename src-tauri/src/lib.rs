@@ -16,6 +16,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init())
         .menu(|app| menu::build_menu(app, "en"))
         .on_menu_event(|app, event| {
             let _ = app.emit("fv-menu", event.id().0.clone());
