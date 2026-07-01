@@ -26,5 +26,12 @@ zeroize = { version = "1.8", features = ["derive"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 base64 = "0.22"
 
+# macOS-only: Touch ID unlock via LocalAuthentication
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSError"] }
+objc2-local-authentication = { version = "0.3", features = ["LAContext", "block2"] }
+block2 = "0.6"
+
 [dev-dependencies]
 data-encoding = "2"

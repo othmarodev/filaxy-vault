@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/Button";
 import { PasswordField } from "../components/PasswordField";
 import { Logo } from "../components/Logo";
@@ -12,11 +12,29 @@ export function Unlock({ path, onUnlocked }: { path: string; onUnlocked: () => v
   const [totp, setTotp] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [err, setErr] = useState("");
+  const [touchId, setTouchId] = useState(false);
+
+  // Offer Touch ID only when the vault key is remembered on this device AND biometrics work.
+  useEffect(() => {
+    let alive = true;
+    Promise.all([api.hasDeviceKey(path), api.biometricAvailable()])
+      .then(([has, bio]) => { if (alive) setTouchId(has && bio); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [path]);
 
   const unlock = async () => {
     setErr("");
     try {
       await api.unlockVault(path, pw, keyfile || undefined, totp || undefined);
+      onUnlocked();
+    } catch { setErr(t("cannotOpen")); }
+  };
+
+  const unlockTouchId = async () => {
+    setErr("");
+    try {
+      await api.unlockWithDevice(path); // triggers the Touch ID prompt in the backend
       onUnlocked();
     } catch { setErr(t("cannotOpen")); }
   };
@@ -35,6 +53,20 @@ export function Unlock({ path, onUnlocked }: { path: string; onUnlocked: () => v
         <div className="flex justify-center mb-6"><Logo /></div>
         <h1 className="text-2xl font-bold text-center" style={{ color: "var(--fv-text)" }}>{t("unlock")}</h1>
         <p className="text-sm text-center mt-1 mb-6" style={{ color: "var(--fv-muted)" }}>{t("unlockSubtitle")}</p>
+
+        {touchId && (
+          <div className="mb-5">
+            <Button type="button" className="w-full !py-2.5 inline-flex items-center justify-center gap-2" onClick={() => void unlockTouchId()}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 11c0 3 0 5-1 7" /><path d="M8 11a4 4 0 0 1 8 0c0 2 0 4-.5 6" />
+                <path d="M5 12a7 7 0 0 1 12-5" /><path d="M19 12c0 2 0 4-.5 6" />
+                <path d="M8.5 18.5c.4-1.2.5-2.5.5-4" />
+              </svg>
+              {t("unlockTouchId")}
+            </Button>
+            <div className="text-center text-xs mt-3" style={{ color: "var(--fv-faint)" }}>{t("orUsePassword")}</div>
+          </div>
+        )}
 
         <form
           className="space-y-4"

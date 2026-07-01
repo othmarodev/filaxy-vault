@@ -6,6 +6,7 @@ pub mod keychain;
 pub mod dto;
 pub mod commands;
 pub mod menu;
+pub mod biometric;
 
 use std::sync::Mutex;
 use tauri::Emitter;
@@ -49,6 +50,9 @@ pub fn run() {
             commands::remember_on_device,
             commands::forget_device,
             commands::unlock_with_device,
+            commands::biometric_available,
+            commands::has_device_key,
+            commands::is_device_remembered,
             commands::totp_now,
             commands::add_seed_entry,
             commands::update_seed_entry,

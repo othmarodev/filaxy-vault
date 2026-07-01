@@ -73,6 +73,9 @@ export const setSettings = (autolockSecs: number, clipboardClearSecs: number) =>
 export const rememberOnDevice = () => invoke<void>("remember_on_device");
 export const forgetDevice = () => invoke<void>("forget_device");
 export const unlockWithDevice = (path: string) => invoke<void>("unlock_with_device", { path });
+export const biometricAvailable = () => invoke<boolean>("biometric_available");
+export const hasDeviceKey = (path: string) => invoke<boolean>("has_device_key", { path });
+export const isDeviceRemembered = () => invoke<boolean>("is_device_remembered");
 
 export const totpNow = (secret: string) => invoke<string>("totp_now", { secret });
 

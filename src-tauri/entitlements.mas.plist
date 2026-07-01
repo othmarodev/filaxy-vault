@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Ties the binary to the Mac App Store provisioning profile (TEAMID.bundleid). -->
+	<key>com.apple.application-identifier</key>
+	<string>J3YC73HASU.app.filaxy.vault</string>
+	<key>com.apple.developer.team-identifier</key>
+	<string>J3YC73HASU</string>
+	<!-- Mac App Store requires the App Sandbox. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- Open/save panels for CSV/XLSX import, encrypted backup export and attachments. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- Required by WKWebView's internal IPC under the sandbox (WebKit needs it to
+	     render even for local content). The app itself makes no network requests. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+</dict>
+</plist>

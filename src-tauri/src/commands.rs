@@ -546,7 +546,27 @@ pub fn forget_device(state: State<'_, Mutex<AppState>>) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn biometric_available() -> bool {
+    crate::biometric::is_available()
+}
+
+#[tauri::command]
+pub fn has_device_key(path: String) -> bool {
+    keychain::recall(&path).ok().flatten().is_some()
+}
+
+/// Whether the currently-unlocked vault has a device key stored (for the Settings toggle).
+#[tauri::command]
+pub fn is_device_remembered(state: State<'_, Mutex<AppState>>) -> Result<bool, String> {
+    let app = state.lock().map_err(|_| "state poisoned".to_string())?;
+    let path = app.vault_path.as_ref().ok_or("no vault path")?.to_string_lossy().to_string();
+    Ok(keychain::recall(&path)?.is_some())
+}
+
+#[tauri::command]
 pub fn unlock_with_device(state: State<'_, Mutex<AppState>>, path: String) -> Result<(), String> {
+    // Gate the stored key behind Touch ID when biometrics are available.
+    crate::biometric::authenticate("Unlock your Filaxy Vault")?;
     let recalled = keychain::recall(&path)?.ok_or("no device key")?;
     let pw_bytes = STANDARD.decode(recalled).map_err(|_| "bad device key".to_string())?;
     let p = PathBuf::from(&path);
